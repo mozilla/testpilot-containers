@@ -235,6 +235,23 @@ const Logic = {
     moveTabsEl.parentNode.insertBefore(fragment, moveTabsEl.nextSibling);
   },
 
+  async sortContainerList(list) {
+    const update = [...list];
+    const result = await browser.storage.local.get({containerSortOrder: null});
+    const upArrowElement = document.querySelector("#sort-containers-list-link .up-arrow-img");
+    const downArrowElement = document.querySelector("#sort-containers-list-link .down-arrow-img");
+    if (result.containerSortOrder === "asc") {
+      update.sort((a, b) => (a.name.toLowerCase() > b.name.toLowerCase()) ? 1 : -1);
+      downArrowElement.style.display = "inline";
+      upArrowElement.style.display = "none";
+    } else if (result.containerSortOrder === "desc") {
+      update.sort((a, b) => (a.name.toLowerCase() < b.name.toLowerCase()) ? 1 : -1);
+      upArrowElement.style.display = "inline";
+      downArrowElement.style.display = "none";
+    }
+    return update;
+  },
+
   async refreshIdentities() {
     const [identities, state] = await Promise.all([
       browser.contextualIdentities.query({}),
@@ -245,7 +262,7 @@ const Logic = {
         }
       })
     ]);
-    this._identities = identities.map((identity) => {
+    const identitiesList = identities.map((identity) => {
       const stateObject = state[identity.cookieStoreId];
       if (stateObject) {
         identity.hasOpenTabs = stateObject.hasOpenTabs;
@@ -255,6 +272,8 @@ const Logic = {
       }
       return identity;
     });
+    this._identities = await this.sortContainerList(identitiesList);
+    return this._identities;
   },
 
   getPanelSelector(panel) {
@@ -382,6 +401,63 @@ const Logic = {
       }
     }
   },
+
+  createContainerList(listParentElement) {
+    const fragment = document.createDocumentFragment();
+
+    Logic.identities().forEach(identity => {
+      const hasTabs = (identity.hasHiddenTabs || identity.hasOpenTabs);
+      const tr = document.createElement("tr");
+      const context = document.createElement("td");
+      const manage = document.createElement("td");
+
+      tr.classList.add("container-panel-row");
+
+      context.classList.add("userContext-wrapper", "open-newtab", "clickable");
+      manage.classList.add("show-tabs", "pop-button");
+      manage.title = escaped`View ${identity.name} container`;
+      context.setAttribute("tabindex", "0");
+      context.title = escaped`Create ${identity.name} tab`;
+      context.innerHTML = escaped`
+        <div class="userContext-icon-wrapper open-newtab">
+          <div class="usercontext-icon"
+            data-identity-icon="${identity.icon}"
+            data-identity-color="${identity.color}">
+          </div>
+        </div>
+        <div class="container-name truncate-text"></div>`;
+      context.querySelector(".container-name").textContent = identity.name;
+      manage.innerHTML = "<img src='/img/container-arrow.svg' class='show-tabs pop-button-image-small' />";
+
+      fragment.appendChild(tr);
+
+      tr.appendChild(context);
+
+      if (hasTabs) {
+        tr.appendChild(manage);
+      }
+
+      Logic.addEnterHandler(tr, async (e) => {
+        if (e.target.matches(".open-newtab")
+            || e.target.parentNode.matches(".open-newtab")
+            || e.type === "keydown") {
+          try {
+            browser.tabs.create({
+              cookieStoreId: identity.cookieStoreId
+            });
+            window.close();
+          } catch (e) {
+            window.close();
+          }
+        } else if (hasTabs) {
+          Logic.showPanel(P_CONTAINER_INFO, identity);
+        }
+      });
+    });
+
+    listParentElement.innerHTML = "";
+    listParentElement.appendChild(fragment);
+  }
 };
 
 // P_ONBOARDING_1: First page for Onboarding.
@@ -527,6 +603,20 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       }
     });
 
+    Logic.addEnterHandler(document.querySelector("#sort-containers-list-link"), async () => {
+      try {
+        const toggle = current => current === "asc" ? "desc": "asc";
+        let result = await browser.storage.local.get({containerSortOrder: null});
+        result = {containerSortOrder: toggle(result.containerSortOrder)};
+        await browser.storage.local.set(result);
+        await Logic.refreshIdentities();
+        const listParentElement = document.querySelector(".identities-list tbody");
+        Logic.createContainerList(listParentElement);
+      } catch (e) {
+        window.close();
+      }
+    });
+
     document.addEventListener("keydown", (e) => {
       const selectables = [...document.querySelectorAll("[tabindex='0'], [tabindex='-1']")];
       const element = document.activeElement;
@@ -623,69 +713,16 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
 
   // This method is called when the panel is shown.
   async prepare() {
-    const fragment = document.createDocumentFragment();
-
     this.prepareCurrentTabHeader();
 
-    Logic.identities().forEach(identity => {
-      const hasTabs = (identity.hasHiddenTabs || identity.hasOpenTabs);
-      const tr = document.createElement("tr");
-      const context = document.createElement("td");
-      const manage = document.createElement("td");
+    const listParentElement = document.querySelector(".identities-list tbody");
+    Logic.createContainerList(listParentElement);
 
-      tr.classList.add("container-panel-row");
-
-      context.classList.add("userContext-wrapper", "open-newtab", "clickable");
-      manage.classList.add("show-tabs", "pop-button");
-      manage.title = escaped`View ${identity.name} container`;
-      context.setAttribute("tabindex", "0");
-      context.title = escaped`Create ${identity.name} tab`;
-      context.innerHTML = escaped`
-        <div class="userContext-icon-wrapper open-newtab">
-          <div class="usercontext-icon"
-            data-identity-icon="${identity.icon}"
-            data-identity-color="${identity.color}">
-          </div>
-        </div>
-        <div class="container-name truncate-text"></div>`;
-      context.querySelector(".container-name").textContent = identity.name;
-      manage.innerHTML = "<img src='/img/container-arrow.svg' class='show-tabs pop-button-image-small' />";
-
-      fragment.appendChild(tr);
-
-      tr.appendChild(context);
-
-      if (hasTabs) {
-        tr.appendChild(manage);
-      }
-
-      Logic.addEnterHandler(tr, async (e) => {
-        if (e.target.matches(".open-newtab")
-            || e.target.parentNode.matches(".open-newtab")
-            || e.type === "keydown") {
-          try {
-            browser.tabs.create({
-              cookieStoreId: identity.cookieStoreId
-            });
-            window.close();
-          } catch (e) {
-            window.close();
-          }
-        } else if (hasTabs) {
-          Logic.showPanel(P_CONTAINER_INFO, identity);
-        }
-      });
-    });
-
-    const list = document.querySelector(".identities-list tbody");
-
-    list.innerHTML = "";
-    list.appendChild(fragment);
     /* Not sure why extensions require a focus for the doorhanger,
        however it allows us to have a tabindex before the first selected item
      */
     const focusHandler = () => {
-      list.querySelector("tr .clickable").focus();
+      listParentElement.querySelector("tr .clickable").focus();
       document.removeEventListener("focus", focusHandler);
     };
     document.addEventListener("focus", focusHandler);
@@ -747,7 +784,7 @@ Logic.registerPanel(P_CONTAINER_INFO, {
       return;
     } else if (numTabs === 1) {
       Logic._disableMoveTabs("Cannot move a tab from a single-tab window.");
-      return; 
+      return;
     }
     Logic.addEnterHandler(moveTabsEl, async () => {
       await browser.runtime.sendMessage({
@@ -808,7 +845,7 @@ Logic.registerPanel(P_CONTAINER_INFO, {
         <td class="container-info-tab-title truncate-text" title="${tab.url}" ><div class="container-tab-title">${tab.title}</div></td>`;
       tr.querySelector("td").appendChild(Utils.createFavIconElement(tab.favIconUrl));
       document.getElementById("container-info-table").appendChild(fragment);
-      
+
       // On click, we activate this tab. But only if this tab is active.
       if (!tab.hiddenState) {
         const closeImage = document.createElement("img");
@@ -842,7 +879,7 @@ Logic.registerPanel(P_CONTAINER_INFO, {
           });
         }
       }
-    } 
+    }
   },
 });
 

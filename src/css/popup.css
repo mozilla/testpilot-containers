@@ -45,6 +45,7 @@ body {
   --block-url-label-size: 2rem; /* 24px */
   --inline-start-size: 1.66rem; /* 20px */
   --inline-button-size: 5.833rem; /* 70px */
+  --inline-button-large-size: 11.666rem; /* 140px */
   --icon-size: 1.166rem; /* 14px */
 
   --small-text-size: 0.833rem; /* 10px */
@@ -315,6 +316,16 @@ table {
   transform: rotate(180deg);
 }
 
+.up-arrow-img {
+  block-size: 16px;
+  inline-size: 16px;
+}
+
+.down-arrow-img {
+  block-size: 16px;
+  inline-size: 16px;
+}
+
 /* Onboarding styles */
 .onboarding * {
   text-align: center;
@@ -459,7 +470,8 @@ manage things like container crud */
   margin-inline-start: var(--inline-item-space-size);
 }
 
-#container-panel #sort-containers-link {
+#container-panel #sort-containers-link,
+#container-panel #sort-containers-list-link {
   align-items: center;
   block-size: var(--block-url-label-size);
   border: 1px solid #d8d8d8;
@@ -467,13 +479,23 @@ manage things like container crud */
   color: var(--title-text-color);
   display: flex;
   font-size: var(--small-text-size);
-  inline-size: var(--inline-button-size);
   justify-content: center;
   text-decoration: none;
 }
 
+#container-panel #sort-containers-link {
+  inline-size: var(--inline-button-size);
+}
+
+#container-panel #sort-containers-list-link {
+  inline-size: var(--inline-button-large-size);
+  margin-left: 1rem;
+}
+
 #container-panel #sort-containers-link:hover,
-#container-panel #sort-containers-link:focus {
+#container-panel #sort-containers-link:focus,
+#container-panel #sort-containers-list-link:hover,
+#container-panel #sort-containers-list-link:focus {
   background: #f2f2f2;
 }
 
