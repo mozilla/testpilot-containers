@@ -11,6 +11,8 @@ module.exports = {
           }
         },
         popup: {
+          // Required to access variables, because nyc messes up 'eval'
+          script: "function evalScript(v) { return eval(v); }",
           jsdom: {
             beforeParse(window) {
               window.browser.storage.local.set({
@@ -39,6 +41,13 @@ module.exports = {
 
     async clickLastMatchingElementByQuerySelector(querySelector) {
       await popup.helper.clickElementByQuerySelectorAll(querySelector, "last");
+    },
+    
+    // Wildcard subdomains: https://github.com/mozilla/multi-account-containers/issues/473
+    async setWildcard(tab, wildcard) {
+      const Logic = popup.window.evalScript("Logic");
+      const userContextId = Logic.userContextId(tab.cookieStoreId);
+      await Logic.setOrRemoveWildcard(tab.id, tab.url, userContextId, wildcard);
     }
   }
 };

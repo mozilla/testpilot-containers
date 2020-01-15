@@ -368,6 +368,17 @@ const Logic = {
     });
   },
 
+  // Wildcard subdomains: https://github.com/mozilla/multi-account-containers/issues/473
+  setOrRemoveWildcard(tabId, url, userContextId, wildcard) {
+    return browser.runtime.sendMessage({
+      method: "setOrRemoveWildcard",
+      tabId,
+      url,
+      userContextId,
+      wildcard
+    });
+  },
+  
   generateIdentityName() {
     const defaultName = "Container #";
     const ids = [];
@@ -393,7 +404,7 @@ const Logic = {
   getCurrentPanelElement() {
     const panelItem = this._panels[this._currentPanel];
     return document.querySelector(this.getPanelSelector(panelItem));
-  },
+  }
 };
 
 // P_ONBOARDING_1: First page for Onboarding.
@@ -1030,16 +1041,38 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
         const assumedUrl = `https://${site.hostname}/favicon.ico`;
         trElement.innerHTML = escaped`
         <div class="favicon"></div>
-        <div title="${site.hostname}" class="truncate-text hostname">
-          ${site.hostname}
-        </div>
+        <div title="${site.hostname}" class="truncate-text hostname"></div>
         <img
           class="pop-button-image delete-assignment"
           src="/img/container-delete.svg"
         />`;
         trElement.getElementsByClassName("favicon")[0].appendChild(Utils.createFavIconElement(assumedUrl));
-        const deleteButton = trElement.querySelector(".delete-assignment");
+        trElement.querySelector(".hostname").appendChild(this.assignmentElement(site));
+
         const that = this;
+        
+        // Wildcard subdomains: https://github.com/mozilla/multi-account-containers/issues/473
+        trElement.querySelectorAll(".subdomain").forEach(function(subdomainLink) {
+          subdomainLink.addEventListener("click", async (e) => {
+            const userContextId = Logic.currentUserContextId();
+            // Wildcard hostname is stored in id attribute
+            const wildcard = e.target.id;
+            if (wildcard) {
+              // Remove wildcard from other site that has same wildcard
+              Object.values(assignments).forEach((site) => {
+                if (site.wildcard === wildcard) { delete site.wildcard; }
+              });
+              site.wildcard = wildcard;
+            } else {
+              delete site.wildcard;
+            }
+            const currentTab = await Logic.currentTab();
+            Logic.setOrRemoveWildcard(currentTab.id, assumedUrl, userContextId, wildcard);
+            that.showAssignedContainers(assignments);
+          });
+        });
+        
+        const deleteButton = trElement.querySelector(".delete-assignment");
         Logic.addEnterHandler(deleteButton, async () => {
           const userContextId = Logic.currentUserContextId();
           // Lets show the message to the current tab
@@ -1049,10 +1082,45 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
           delete assignments[siteKey];
           that.showAssignedContainers(assignments);
         });
+        
         trElement.classList.add("container-info-tab-row", "clickable");
         tableElement.appendChild(trElement);
       });
     }
+  },
+  
+  // Wildcard subdomains: https://github.com/mozilla/multi-account-containers/issues/473
+  assignmentElement(site) {
+    const result = document.createElement("span");
+  
+    // Remove wildcard subdomain
+    if (site.wildcard && site.wildcard !== site.hostname) {
+      result.appendChild(this.assignmentSubdomainLink(null, "___"));
+      result.appendChild(document.createTextNode("."));
+    }
+  
+    // Add wildcard subdomain
+    let hostname = site.wildcard ? site.wildcard : site.hostname;
+    let indexOfDot;
+    while ((indexOfDot = hostname.indexOf(".")) >= 0) {
+      const subdomain = hostname.substring(0, indexOfDot);
+      hostname = hostname.substring(indexOfDot + 1);
+      result.appendChild(this.assignmentSubdomainLink(hostname, subdomain));
+      result.appendChild(document.createTextNode("."));
+    }
+
+    // Root domain
+    result.appendChild(document.createTextNode(hostname));
+  
+    return result;
+  },
+  
+  assignmentSubdomainLink(wildcard, text) {
+    const result = document.createElement("a");
+    if (wildcard) { result.id = wildcard; }
+    result.className = "subdomain";
+    result.appendChild(document.createTextNode(text));
+    return result;
   },
 
   initializeRadioButtons() {

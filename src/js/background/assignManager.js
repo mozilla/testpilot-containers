@@ -6,115 +6,150 @@ const assignManager = {
   MENU_MOVE_ID: "move-to-new-window-container",
   OPEN_IN_CONTAINER: "open-bookmark-in-container-tab",
   storageArea: {
-    area: browser.storage.local,
+    area: new utils.NamedStore("siteContainerMap"),
     exemptedTabs: {},
 
-    getSiteStoreKey(pageUrl) {
-      const url = new window.URL(pageUrl);
-      const storagePrefix = "siteContainerMap@@_";
-      if (url.port === "80" || url.port === "443") {
-        return `${storagePrefix}${url.hostname}`;
+    async matchUrl(pageUrl) {
+      const siteId = backgroundLogic.getSiteIdFromUrl(pageUrl);
+      
+      // Try exact match
+      let siteSettings = await this.get(siteId);
+      
+      if (!siteSettings) {
+        // Try wildcard match
+        const wildcard = await wildcardManager.match(siteId);
+        if (wildcard) {
+          siteSettings = await this.get(wildcard);
+        }
+      }
+      
+      return siteSettings;
+    },
+    
+    create(siteId, userContextId, options = {}) {
+      const siteSettings = { userContextId, neverAsk:!!options.neverAsk };
+      this._setTransientProperties(siteId, siteSettings, options.wildcard);
+      return siteSettings;
+    },
+
+    async get(siteId) {
+      const siteSettings = await this.area.get(siteId);
+      await this._loadTransientProperties(siteId, siteSettings);
+      return siteSettings;
+    },
+
+    async set(siteSettings) {
+      const siteId = siteSettings.siteId;
+      const exemptedTabs = siteSettings.exemptedTabs;
+      const wildcard = siteSettings.wildcard;
+      
+      // Store exempted tabs
+      this.exemptedTabs[siteId] = exemptedTabs;
+      
+      // Store/remove wildcard mapping
+      if (wildcard && wildcard !== siteId) {
+        await wildcardManager.set(siteId, wildcard);
       } else {
-        return `${storagePrefix}${url.hostname}${url.port}`;
+        await wildcardManager.remove(siteId);
       }
+      
+      // Remove transient properties before storing
+      const cleanSiteSettings = Object.assign({}, siteSettings);
+      this._unsetTransientProperties(cleanSiteSettings);
+      
+      // Store assignment
+      return this.area.set(siteId, cleanSiteSettings);
     },
 
-    setExempted(pageUrl, tabId) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
-      if (!(siteStoreKey in this.exemptedTabs)) {
-        this.exemptedTabs[siteStoreKey] = [];
-      }
-      this.exemptedTabs[siteStoreKey].push(tabId);
-    },
-
-    removeExempted(pageUrl) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
-      this.exemptedTabs[siteStoreKey] = [];
-    },
-
-    isExempted(pageUrl, tabId) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
-      if (!(siteStoreKey in this.exemptedTabs)) {
-        return false;
-      }
-      return this.exemptedTabs[siteStoreKey].includes(tabId);
-    },
-
-    get(pageUrl) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
-      return new Promise((resolve, reject) => {
-        this.area.get([siteStoreKey]).then((storageResponse) => {
-          if (storageResponse && siteStoreKey in storageResponse) {
-            resolve(storageResponse[siteStoreKey]);
-          }
-          resolve(null);
-        }).catch((e) => {
-          reject(e);
-        });
-      });
-    },
-
-    set(pageUrl, data, exemptedTabIds) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
-      if (exemptedTabIds) {
-        exemptedTabIds.forEach((tabId) => {
-          this.setExempted(pageUrl, tabId);
-        });
-      }
-      return this.area.set({
-        [siteStoreKey]: data
-      });
-    },
-
-    remove(pageUrl) {
-      const siteStoreKey = this.getSiteStoreKey(pageUrl);
+    async remove(siteId) {
       // When we remove an assignment we should clear all the exemptions
-      this.removeExempted(pageUrl);
-      return this.area.remove([siteStoreKey]);
+      delete this.exemptedTabs[siteId];
+      // ...and also clear the wildcard mapping
+      await wildcardManager.remove(siteId);
+      
+      return this.area.remove(siteId);
     },
 
     async deleteContainer(userContextId) {
-      const sitesByContainer = await this.getByContainer(userContextId);
-      this.area.remove(Object.keys(sitesByContainer));
+      const siteSettingsById = await this.getByContainer(userContextId);
+      const siteIds = Object.keys(siteSettingsById);
+      
+      siteIds.forEach((siteId) => {
+        // When we remove an assignment we should clear all the exemptions
+        delete this.exemptedTabs[siteId];
+      });
+      
+      // ...and also clear the wildcard mappings
+      await wildcardManager.removeAll(siteIds);
+
+      return this.area.removeAll(siteIds);
     },
 
     async getByContainer(userContextId) {
-      const sites = {};
-      const siteConfigs = await this.area.get();
-      Object.keys(siteConfigs).forEach((key) => {
+      const siteSettingsById = await this.area.getSome((siteId, siteSettings) => {
         // For some reason this is stored as string... lets check them both as that
-        if (String(siteConfigs[key].userContextId) === String(userContextId)) {
-          const site = siteConfigs[key];
-          // In hindsight we should have stored this
-          // TODO file a follow up to clean the storage onLoad
-          site.hostname = key.replace(/^siteContainerMap@@_/, "");
-          sites[key] = site;
-        }
+        return String(siteSettings.userContextId) === String(userContextId);
       });
-      return sites;
+      await this._loadTransientPropertiesForAll(siteSettingsById);      
+      return siteSettingsById;
+    },
+    
+    async _loadTransientProperties(siteId, siteSettings) {
+      if (siteId && siteSettings) {
+        const wildcard = await wildcardManager.get(siteId);
+        const exemptedTabs = this.exemptedTabs[siteId];
+        this._setTransientProperties(siteId, siteSettings, wildcard, exemptedTabs);
+      }
+    },
+    
+    async _loadTransientPropertiesForAll(siteSettingsById) {
+      const siteIds = Object.keys(siteSettingsById);
+      if (siteIds.length > 0) {
+        const siteIdsToWildcards = await wildcardManager.getAll(siteIds);        
+        siteIds.forEach((siteId) => {
+          const siteSettings = siteSettingsById[siteId];
+          const wildcard = siteIdsToWildcards[siteId];
+          const exemptedTabs = this.exemptedTabs[siteId];
+          this._setTransientProperties(siteId, siteSettings, wildcard, exemptedTabs);
+        });
+      }
+    },
+    
+    _setTransientProperties(siteId, siteSettings, wildcard, exemptedTabs = []) {
+      siteSettings.siteId = siteId;
+      siteSettings.hostname = siteId;
+      siteSettings.wildcard = wildcard;
+      siteSettings.exemptedTabs = exemptedTabs;
+    },
+    
+    _unsetTransientProperties(siteSettings) {
+      delete siteSettings.siteId;
+      delete siteSettings.hostname;
+      delete siteSettings.wildcard;
+      delete siteSettings.exemptedTabs;
     }
   },
 
-  _neverAsk(m) {
+  async _neverAsk(m) {
     const pageUrl = m.pageUrl;
-    if (m.neverAsk === true) {
-      // If we have existing data and for some reason it hasn't been deleted etc lets update it
-      this.storageArea.get(pageUrl).then((siteSettings) => {
-        if (siteSettings) {
-          siteSettings.neverAsk = true;
-          this.storageArea.set(pageUrl, siteSettings);
-        }
-      }).catch((e) => {
-        throw e;
-      });
+    const neverAsk = m.neverAsk;
+    if (neverAsk === true) {
+      const siteSettings = await this.storageArea.matchUrl(pageUrl);
+      if (siteSettings && !siteSettings.neverAsk) {
+        siteSettings.neverAsk = true;
+        await this.storageArea.set(siteSettings);
+      }
     }
   },
 
-  // We return here so the confirm page can load the tab when exempted
   async _exemptTab(m) {
     const pageUrl = m.pageUrl;
-    this.storageArea.setExempted(pageUrl, m.tabId);
-    return true;
+    const tabId = m.tabId;
+    const siteSettings = await this.storageArea.matchUrl(pageUrl);
+    if (siteSettings && siteSettings.exemptedTabs.indexOf(tabId) === -1) {
+      siteSettings.exemptedTabs.push(tabId);
+      await this.storageArea.set(siteSettings);
+    }
   },
 
   // Before a request is handled by the browser we decide if we should route through a different container
@@ -125,7 +160,7 @@ const assignManager = {
     this.removeContextMenu();
     const [tab, siteSettings] = await Promise.all([
       browser.tabs.get(options.tabId),
-      this.storageArea.get(options.url)
+      this.storageArea.matchUrl(options.url)
     ]);
     let container;
     try {
@@ -142,8 +177,8 @@ const assignManager = {
     }
     const userContextId = this.getUserContextIdFromCookieStore(tab);
     if (!siteSettings
-        || userContextId === siteSettings.userContextId
-        || this.storageArea.isExempted(options.url, tab.id)) {
+        || siteSettings.userContextId === userContextId
+        || siteSettings.exemptedTabs.includes(tab.id)) {
       return {};
     }
     const removeTab = backgroundLogic.NEW_TAB_PAGES.has(tab.url)
@@ -367,7 +402,14 @@ const assignManager = {
     return true;
   },
 
-  async _setOrRemoveAssignment(tabId, pageUrl, userContextId, remove) {
+  _determineAssignmentMatchesUrl(siteSettings, url) {
+    const siteId = backgroundLogic.getSiteIdFromUrl(url);
+    if (siteSettings.siteId === siteId) { return true; }
+    if (siteSettings.wildcard && siteId.endsWith(siteSettings.wildcard)) { return true; }
+    return false;
+  },
+
+  async _setOrRemoveAssignment(tabId, pageUrl, userContextId, remove, options = {}) {
     let actionName;
 
     // https://github.com/mozilla/testpilot-containers/issues/626
@@ -375,35 +417,45 @@ const assignManager = {
     // the value to a string for accurate checking
     userContextId = String(userContextId);
 
+    const siteId = backgroundLogic.getSiteIdFromUrl(pageUrl);
     if (!remove) {
+      const siteSettings = this.storageArea.create(siteId, userContextId, options);
+      
+      // Auto exempt all tabs that exist for this hostname that are not in the same container
       const tabs = await browser.tabs.query({});
-      const assignmentStoreKey = this.storageArea.getSiteStoreKey(pageUrl);
-      const exemptedTabIds = tabs.filter((tab) => {
-        const tabStoreKey = this.storageArea.getSiteStoreKey(tab.url);
-        /* Auto exempt all tabs that exist for this hostname that are not in the same container */
-        if (tabStoreKey === assignmentStoreKey &&
-            this.getUserContextIdFromCookieStore(tab) !== userContextId) {
-          return true;
-        }
-        return false;
+      siteSettings.exemptedTabs = tabs.filter((tab) => {
+        if (!this._determineAssignmentMatchesUrl(siteSettings, tab.url)) { return false; }
+        if (this.getUserContextIdFromCookieStore(tab) === userContextId) { return false; }
+        return true;
       }).map((tab) => {
         return tab.id;
       });
-
-      await this.storageArea.set(pageUrl, {
-        userContextId,
-        neverAsk: false
-      }, exemptedTabIds);
+      
+      await this.storageArea.set(siteSettings);
       actionName = "added";
     } else {
-      await this.storageArea.remove(pageUrl);
+      await this.storageArea.remove(siteId);
       actionName = "removed";
     }
-    browser.tabs.sendMessage(tabId, {
-      text: `Successfully ${actionName} site to always open in this container`
-    });
+    if (!options.silent) {
+      browser.tabs.sendMessage(tabId, {
+        text: `Successfully ${actionName} site to always open in this container`
+      });
+    }
     const tab = await browser.tabs.get(tabId);
     this.calculateContextMenu(tab);
+  },
+  
+  async _setOrRemoveWildcard(tabId, pageUrl, userContextId, wildcard) {
+    // Get existing settings, so we can preserve neverAsk property
+    const siteId = backgroundLogic.getSiteIdFromUrl(pageUrl);
+    const siteSettings = await this.storageArea.get(siteId);
+    const neverAsk = siteSettings && siteSettings.neverAsk;
+    
+    // Remove assignment
+    await this._setOrRemoveAssignment(tabId, pageUrl, userContextId, true, {silent:true});
+    // Add assignment
+    await this._setOrRemoveAssignment(tabId, pageUrl, userContextId, false, {silent:true, wildcard:wildcard, neverAsk:neverAsk});
   },
 
   async _getAssignment(tab) {
@@ -411,7 +463,7 @@ const assignManager = {
     // Ensure we have a cookieStore to assign to
     if (cookieStore
         && this.isTabPermittedAssign(tab)) {
-      return await this.storageArea.get(tab.url);
+      return await this.storageArea.matchUrl(tab.url);
     }
     return false;
   },

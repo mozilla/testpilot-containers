@@ -329,5 +329,17 @@ const backgroundLogic = {
 
   cookieStoreId(userContextId) {
     return `firefox-container-${userContextId}`;
+  },
+  
+  // A URL host string that is used to identify a site assignment, e.g.:
+  //   www.example.com
+  //   www.example.com:8080
+  getSiteIdFromUrl(pageUrl) {
+    const url = new window.URL(pageUrl);
+    if (url.port === "" || url.port === "80" || url.port === "443") {
+      return `${url.hostname}`;
+    } else {
+      return `${url.hostname}:${url.port}`;
+    }
   }
 };

@@ -832,6 +832,11 @@ span ~ .panel-header-text {
   flex: 1;
 }
 
+/* Wildcard subdomains: https://github.com/mozilla/multi-account-containers/issues/473 */
+.assigned-sites-list .hostname .subdomain:hover {
+  text-decoration: underline;
+}
+
 .radio-choice > .radio-container {
   align-items: center;
   block-size: 29px;
