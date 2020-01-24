@@ -4,6 +4,8 @@
 
 const CONTAINER_HIDE_SRC = "/img/container-hide.svg";
 const CONTAINER_UNHIDE_SRC = "/img/container-unhide.svg";
+const CONTAINER_RECORD_ENABLED_SRC = "/img/container-record-enabled.svg";
+const CONTAINER_RECORD_DISABLED_SRC = "/img/container-record-disabled.svg";
 
 const DEFAULT_COLOR = "blue";
 const DEFAULT_ICON = "circle";
@@ -22,6 +24,7 @@ const P_CONTAINERS_EDIT = "containersEdit";
 const P_CONTAINER_INFO = "containerInfo";
 const P_CONTAINER_EDIT = "containerEdit";
 const P_CONTAINER_DELETE = "containerDelete";
+const P_CONTAINER_RECORD = "containerRecord";
 const P_CONTAINERS_ACHIEVEMENT = "containersAchievement";
 
 /**
@@ -67,6 +70,25 @@ async function getExtensionInfo() {
   return extensionInfo;
 }
 
+// Determine where this popup is hosted - browserAction / iframe in a tab
+const Env = {
+  init() {
+    this.hasFullBrowserAPI = !!browser.tabs;
+
+    const params = new URLSearchParams(window.location.search);
+    const tabId = params.get("tabId");
+    if (tabId !== null) {
+      this.tabId = parseInt(tabId, 10);
+      this.isBrowserActionPopup = false;
+    } else {
+      this.tabId = -1;
+      this.isBrowserActionPopup = this.hasFullBrowserAPI;
+    }
+  }
+};
+Env.init();
+
+
 // This object controls all the panels, identities and many other things.
 const Logic = {
   _identities: [],
@@ -77,8 +99,13 @@ const Logic = {
   _onboardingVariation: null,
 
   async init() {
-    // Remove browserAction "upgraded" badge when opening panel
-    this.clearBrowserActionBadge();
+    // Running in an iframe on a webpage - inject missing API methods
+    if (!Env.hasFullBrowserAPI) {
+      await this.injectAPI();
+    }
+    
+    // API methods are ready, can continue with init
+    const initializingPanels = this.initializePanels();
 
     // Retrieve the list of identities.
     const identitiesPromise = this.refreshIdentities();
@@ -89,40 +116,46 @@ const Logic = {
       throw new Error("Failed to retrieve the identities or variation. We cannot continue. ", e.message);
     }
 
+    // Remove browserAction "upgraded" badge when opening panel
+    const clearingBadge = this.clearBrowserActionBadge();
+    
     // Routing to the correct panel.
     // If localStorage is disabled, we don't show the onboarding.
     const onboardingData = await browser.storage.local.get([ONBOARDING_STORAGE_KEY]);
     let onboarded = onboardingData[ONBOARDING_STORAGE_KEY];
+    let settingOnboardingStage;
     if (!onboarded) {
       onboarded = 0;
-      this.setOnboardingStage(onboarded);
+      settingOnboardingStage = this.setOnboardingStage(onboarded);
     }
 
+    let showingPanel;
     switch (onboarded) {
     case 5:
-      this.showAchievementOrContainersListPanel();
+      showingPanel = this.showAchievementOrContainersListOrRecordPanel();
       break;
     case 4:
-      this.showPanel(P_ONBOARDING_5);
+      showingPanel = this.showPanel(P_ONBOARDING_5);
       break;
     case 3:
-      this.showPanel(P_ONBOARDING_4);
+      showingPanel = this.showPanel(P_ONBOARDING_4);
       break;
     case 2:
-      this.showPanel(P_ONBOARDING_3);
+      showingPanel = this.showPanel(P_ONBOARDING_3);
       break;
     case 1:
-      this.showPanel(P_ONBOARDING_2);
+      showingPanel = this.showPanel(P_ONBOARDING_2);
       break;
     case 0:
     default:
-      this.showPanel(P_ONBOARDING_1);
+      showingPanel = this.showPanel(P_ONBOARDING_1);
       break;
     }
-
+    
+    return Promise.all([initializingPanels, clearingBadge, settingOnboardingStage, showingPanel]);
   },
 
-  async showAchievementOrContainersListPanel() {
+  async showAchievementOrContainersListOrRecordPanel() {
     // Do we need to show an achievement panel?
     let showAchievements = false;
     const achievementsStorage = await browser.storage.local.get({ achievements: [] });
@@ -134,8 +167,24 @@ const Logic = {
     if (showAchievements) {
       this.showPanel(P_CONTAINERS_ACHIEVEMENT);
     } else {
-      this.showPanel(P_CONTAINERS_LIST);
+      const currentTab = await Logic.currentTab();
+      const isRecordingTab = await Logic.isRecordingTab(currentTab);
+      if (isRecordingTab) {
+        this.showPanel(P_CONTAINER_RECORD);
+      } else {
+        this.showPanel(P_CONTAINERS_LIST);
+      }
     }
+  },
+
+  // Used when popup is running within iframe on a webpage, so lacks privileged API
+  async injectAPI() {
+    const script = document.createElement("script");
+    script.src = "/js/popup-bootstrap.js";
+    document.body.appendChild(script);
+    await new Promise((resolve) => { script.addEventListener("load", resolve); });
+    // Above script has added browserAPIInjector
+    await browserAPIInjector.injectAPI();
   },
 
   // In case the user wants to click multiple actions,
@@ -160,6 +209,8 @@ const Logic = {
   },
 
   async clearBrowserActionBadge() {
+    if (!Env.isBrowserActionPopup) { return; }
+    
     const extensionInfo = await getExtensionInfo();
     const storage = await browser.storage.local.get({ browserActionBadgesClicked: [] });
     browser.browserAction.setBadgeBackgroundColor({ color: null });
@@ -207,11 +258,15 @@ const Logic = {
   },
 
   async currentTab() {
-    const activeTabs = await browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT });
-    if (activeTabs.length > 0) {
-      return activeTabs[0];
+    if (Env.tabId >= 0) {
+      return await browser.tabs.get(Env.tabId);
+    } else {
+      const activeTabs = await browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT });
+      if (activeTabs.length > 0) {
+        return activeTabs[0];
+      }
+      return false;
     }
-    return false;
   },
 
   async numTabs() {
@@ -309,7 +364,14 @@ const Logic = {
 
   registerPanel(panelName, panelObject) {
     this._panels[panelName] = panelObject;
-    panelObject.initialize();
+  },
+  
+  initializePanels() {
+    return Promise.all(Object.values(this._panels).map(async (panel) => { return panel.initialize(); }));
+  },
+  
+  getPanel(panelName) {
+    return this._panels[panelName];
   },
 
   identities() {
@@ -321,6 +383,10 @@ const Logic = {
       throw new Error("CurrentIdentity must be set before calling Logic.currentIdentity.");
     }
     return this._currentIdentity;
+  },
+  
+  setCurrentIdentity(identity) {
+    this._currentIdentity = identity;
   },
 
   currentUserContextId() {
@@ -368,6 +434,24 @@ const Logic = {
     });
   },
 
+  async isRecordingTab(tab) {
+    if (!tab || tab.id === browser.tabs.TAB_ID_NONE) { return false; }
+    try {
+      const recordingTabId = await browser.runtime.sendMessage({
+        method: "getRecording"
+      });
+      return recordingTabId === tab.id;
+    } catch (e) { console.error("Failed to determine if recording: " + e.message); return false; }
+  },
+  
+  async setRecordingTab(tab) {
+    const tabId = tab ? tab.id : browser.tabs.TAB_ID_NONE;
+    return browser.runtime.sendMessage({
+      method: "setOrRemoveRecording",
+      tabId
+    });
+  },
+  
   generateIdentityName() {
     const defaultName = "Container #";
     const ids = [];
@@ -393,7 +477,7 @@ const Logic = {
   getCurrentPanelElement() {
     const panelItem = this._panels[this._currentPanel];
     return document.querySelector(this.getPanelSelector(panelItem));
-  },
+  }
 };
 
 // P_ONBOARDING_1: First page for Onboarding.
@@ -538,7 +622,7 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
         window.close();
       }
     });
-
+    
     document.addEventListener("keydown", (e) => {
       const selectables = [...document.querySelectorAll("[tabindex='0'], [tabindex='-1']")];
       const element = document.activeElement;
@@ -630,21 +714,78 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
     }
     assignmentCheckboxElement.disabled = disabled;
   },
+  
+  isRecordingEnabled() {
+    const recordLinkElement = document.getElementById("record-link");
+    if (recordLinkElement.classList.contains("disabled")) { return false; }
+    return true;
+  },
+  
+  isRecordingActive() {
+    const recordLinkElement = document.getElementById("record-link");
+    if (recordLinkElement.classList.contains("active")) { return true; }
+    return false;
+  },
+  
+  setRecordingActiveAndEnabled(isActive, isEnabled) {
+    const recordLinkElement = document.getElementById("record-link");
+    const recordIconElement = recordLinkElement.querySelector(".icon");
+  
+    if (!isEnabled) {
+      recordIconElement.src = CONTAINER_RECORD_DISABLED_SRC;
+      recordLinkElement.classList.remove("active");
+      recordLinkElement.classList.add("disabled");
+    } else {
+      recordIconElement.src = CONTAINER_RECORD_ENABLED_SRC;
+      recordLinkElement.classList.remove("disabled");
+      if (isActive) {
+        recordLinkElement.classList.add("active");
+      } else {
+        recordLinkElement.classList.remove("active");
+      }
+    }
+  },
 
   async prepareCurrentTabHeader() {
     const currentTab = await Logic.currentTab();
     const currentTabElement = document.getElementById("current-tab");
     const assignmentCheckboxElement = document.getElementById("container-page-assigned");
+    const recordLinkElement = document.getElementById("record-link");
     const currentTabUserContextId = Logic.userContextId(currentTab.cookieStoreId);
     assignmentCheckboxElement.addEventListener("change", () => {
       Logic.setOrRemoveAssignment(currentTab.id, currentTab.url, currentTabUserContextId, !assignmentCheckboxElement.checked);
     });
+    Logic.addEnterHandler(recordLinkElement, async () => {
+      const currentTab = await Logic.currentTab();
+      if (!currentTab) { return; }
+      if (!this.isRecordingEnabled()) { return; }
+      
+      const newRecordingTab = this.isRecordingActive() ? null : currentTab;
+      let showingPanel;
+      try {
+        // Show new recording started/stopped status
+        this.setRecordingActiveAndEnabled(!!newRecordingTab, true);
+        // Show recording panel
+        if (newRecordingTab) { showingPanel = Logic.showPanel(P_CONTAINER_RECORD); }
+        // Start/stop recording
+        await Logic.setRecordingTab(newRecordingTab);
+      } catch (e) {
+        // Failed - revert recording started/stopped status
+        this.setRecordingActiveAndEnabled(!newRecordingTab, true);
+        try { await showingPanel; } catch (e) { /* Ignore show error, as we're immediately going to change panel */ }
+        Logic.showPanel(P_CONTAINERS_LIST);
+        throw new Error("Failed to " + (newRecordingTab ? "start" : "stop") + " recording: " + e.message);
+      }
+    });
     currentTabElement.hidden = !currentTab;
     this.setupAssignmentCheckbox(false, currentTabUserContextId);
+    this.setRecordingActiveAndEnabled(false, false);
     if (currentTab) {
       const identity = await Logic.identity(currentTab.cookieStoreId);
       const siteSettings = await Logic.getAssignment(currentTab);
       this.setupAssignmentCheckbox(siteSettings, currentTabUserContextId);
+      const isCurrentTabRecording = await Logic.isRecordingTab(currentTab);
+      this.setRecordingActiveAndEnabled(isCurrentTabRecording, (currentTabUserContextId !== false));
       const currentPage = document.getElementById("current-page");
       currentPage.innerHTML = escaped`<span class="page-title truncate-text">${currentTab.title}</span>`;
       const favIconElement = Utils.createFavIconElement(currentTab.favIconUrl || "");
@@ -1011,10 +1152,10 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     }
   },
 
-  showAssignedContainers(assignments) {
-    const assignmentPanel = document.getElementById("edit-sites-assigned");
-    const assignmentKeys = Object.keys(assignments);
-    assignmentPanel.hidden = !(assignmentKeys.length > 0);
+  showAssignedContainers(assignments, options = {}) {
+    const assignmentPanel = document.getElementById(options.elementId || "edit-sites-assigned");
+    const assignmentKeys = assignments ? Object.keys(assignments) : [];
+    assignmentPanel.hidden = !(assignmentKeys.length > 0) && !options.sticky;
     if (assignments) {
       const tableElement = assignmentPanel.querySelector(".assigned-sites-list");
       /* Remove previous assignment list,
@@ -1047,7 +1188,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
           const currentTab = await Logic.currentTab();
           Logic.setOrRemoveAssignment(currentTab.id, assumedUrl, userContextId, true);
           delete assignments[siteKey];
-          that.showAssignedContainers(assignments);
+          that.showAssignedContainers(assignments, options);
         });
         trElement.classList.add("container-info-tab-row", "clickable");
         tableElement.appendChild(trElement);
@@ -1091,7 +1232,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
 
     const userContextId = Logic.currentUserContextId();
     const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
-    this.showAssignedContainers(assignments);
+    this.showAssignedContainers(assignments, { elementId: "edit-sites-assigned" });
     document.querySelector("#edit-container-panel .panel-footer").hidden = !!userContextId;
 
     document.querySelector("#edit-container-panel-name-input").value = identity.name || "";
@@ -1164,6 +1305,45 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
   },
 });
 
+// P_CONTAINER_RECORD: Add assignments to a container by browsing
+// ----------------------------------------------------------------------------
+
+Logic.registerPanel(P_CONTAINER_RECORD, {
+  panelSelector: "#container-record-panel",
+
+  // This method is called when the object is registered.
+  initialize() {
+    Logic.addEnterHandler(document.querySelector("#exit-record-mode-link"), () => {
+      Logic.setRecordingTab(null);
+      Logic.showPanel(P_CONTAINERS_LIST);
+    });
+  },
+
+  // This method is called when the panel is shown.
+  async prepare() {
+    const currentTab = await Logic.currentTab();
+    const identity = await Logic.identity(currentTab.cookieStoreId);
+    // We only show this panel if the current tab is recording.
+    // So the current identity is determined by the current tab.
+    Logic.setCurrentIdentity(identity);
+
+    // Populating the panel: name and icon
+    document.getElementById("container-record-name").textContent = identity.name;
+
+    const icon = document.getElementById("container-record-icon");
+    icon.setAttribute("data-identity-icon", identity.icon);
+    icon.setAttribute("data-identity-color", identity.color);
+
+    // Assignments
+    const userContextId = Logic.currentUserContextId();
+    const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
+    const editPanel = Logic.getPanel(P_CONTAINER_EDIT);
+    editPanel.showAssignedContainers(assignments, { elementId: "record-sites-assigned", sticky: true });
+
+    return Promise.resolve(null);
+  },
+});
+
 // P_CONTAINERS_ACHIEVEMENT: Page for achievement.
 // ----------------------------------------------------------------------------
 
@@ -1187,7 +1367,30 @@ Logic.registerPanel(P_CONTAINERS_ACHIEVEMENT, {
 
 Logic.init();
 
+/**
+  Notify backgroundPage about show/hide/resize of this popup by opening a port.
+  When this popup unloads, the port is automatically disconnected.
+  Note: only notify if this is the 'real' browserAction popup (i.e. not a 'fake' popup in an iframe)
+ */
+class PopupEvents {
+  constructor() {
+    this.port = browser.runtime.connect({ name: "browserActionPopup" });
+    this.onResize();
+  }
+  onResize() {
+    this.port.postMessage({
+      update: {
+        width: window.innerWidth,
+        height: window.innerHeight
+      }
+    });
+  }
+}
+const popupEvents = Env.isBrowserActionPopup ? new PopupEvents() : null;
+
 window.addEventListener("resize", function () {
+  if (popupEvents) { popupEvents.onResize(); }
+
   //for overflow menu
   const difference = window.innerWidth - document.body.offsetWidth;
   if (difference > 2) {

@@ -108,6 +108,9 @@
       </label>
     </div>
     <div class="container-panel-controls">
+      <a href="#" class="action-link" id="record-link" title="Automatically add sites to current container">
+        <img class="icon" src="/img/container-record-enabled.svg" />
+      </a>
       <a href="#" class="action-link" id="sort-containers-link" title="Sort tabs into container order">Sort Tabs</a>
     </div>
     <div class="scrollable panel-content" tabindex="-1">
@@ -162,7 +165,7 @@
     <div class="panel-footer edit-containers-panel-footer">
       <a href="#" id="exit-edit-mode-link" class="exit-edit-mode-link edit-containers-exit-text">
       <img src="/img/container-arrow.svg"/>Exit Edit Mode</a>
-  </div>
+    </div>
   </div>
 
 
@@ -210,6 +213,26 @@
     <div class="panel-footer">
       <a href="#" class="button expanded secondary footer-button cancel-button" id="delete-container-cancel-link">Cancel</a>
       <a href="#" class="button expanded primary footer-button" id="delete-container-ok-link">OK</a>
+    </div>
+  </div>
+  
+  <div class="hide panel container-record-panel" id="container-record-panel" tabindex="-1">
+    <div class="panel-header container-record-panel-header">
+      <span class="usercontext-icon" id="container-record-icon"></span>
+      <h3 id="container-record-name" class="panel-header-text container-name truncate-text"></h3>
+    </div>
+    <div class="container-record-panel-banner container-record-banner" id="container-record-banner">
+      <img id="container-record-icon" alt="Container Record icon" src="/img/container-record-enabled.svg" class="icon container-record-panel-record-icon"/>
+      <span id="container-record-label">RECORDING</span>
+    </div>
+    <div id="record-sites-assigned" class="scrollable" hidden>
+      <h3>Sites assigned to this container</h3>
+      <div class="assigned-sites-list">
+      </div>
+    </div>
+    <div class="panel-footer container-record-panel-footer">
+      <a href="#" id="exit-record-mode-link" class="exit-record-mode-link container-record-exit-text">
+      <img src="/img/container-arrow.svg"/>Exit Record Mode</a>
     </div>
   </div>
 

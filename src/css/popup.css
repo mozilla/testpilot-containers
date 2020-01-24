@@ -18,6 +18,7 @@ html {
 }
 
 body {
+  display: flex;
   font-family: Roboto, Noto, "San Francisco", Ubuntu, "Segoe UI", "Fira Sans", message-box, Arial, sans-serif;
   inline-size: calc(var(--overflow-size) + 299px);
   max-inline-size: calc(var(--overflow-size) + 299px);
@@ -246,6 +247,7 @@ table {
 /* Panels keep everything together */
 .panel {
   display: flex;
+  flex: 1;
   flex-direction: column;
   justify-content: space-between;
   min-block-size: 400px;
@@ -451,7 +453,9 @@ manage things like container crud */
 }
 
 .container-panel-controls {
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-column-gap: var(--inline-item-space-size);
   justify-content: flex-end;
   margin-block-end: var(--block-line-space-size);
   margin-block-start: var(--block-line-space-size);
@@ -459,22 +463,49 @@ manage things like container crud */
   margin-inline-start: var(--inline-item-space-size);
 }
 
-#container-panel #sort-containers-link {
+#container-panel .container-panel-controls > * {
   align-items: center;
   block-size: var(--block-url-label-size);
   border: 1px solid #d8d8d8;
   border-radius: var(--small-radius);
   color: var(--title-text-color);
   display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
   font-size: var(--small-text-size);
   inline-size: var(--inline-button-size);
   justify-content: center;
   text-decoration: none;
 }
 
-#container-panel #sort-containers-link:hover,
-#container-panel #sort-containers-link:focus {
+#container-panel .container-panel-controls > a:hover,
+#container-panel .container-panel-controls > a:focus,
+#container-panel .container-panel-controls > .disabled {
   background: #f2f2f2;
+}
+
+#container-panel .container-panel-controls > #record-link {
+  inline-size: var(--block-url-label-size);
+}
+
+.container-panel-controls > #record-link > .icon {
+  margin-block-end: 4px;
+  margin-block-start: 4px;
+  margin-inline-end: 4px;
+  margin-inline-start: 4px;
+}
+
+#record-link > .icon {
+  filter: invert(0.2);
+}
+
+#record-link.disabled > .icon {
+  filter: invert(0.6);
+}
+
+#record-link.active > .icon,
+.container-record-banner img {
+  filter: invert(0.5) sepia(1) saturate(127) hue-rotate(360deg);
 }
 
 span ~ .panel-header-text {
@@ -674,7 +705,8 @@ span ~ .panel-header-text {
   inline-size: calc(var(--column-panel-inline-size) - 58px);
 }
 
-#container-info-hideorshow {
+#container-info-hideorshow,
+#container-record-banner {
   margin-block-start: 4px;
 }
 
@@ -704,7 +736,8 @@ span ~ .panel-header-text {
 }
 
 .container-info-has-tabs,
-.container-info-tab-row {
+.container-info-tab-row,
+.container-record-banner {
   align-items: center;
   display: flex;
   flex: 0 0 28px;
@@ -718,11 +751,23 @@ span ~ .panel-header-text {
   padding-inline-start: 16px;
 }
 
+.container-record-banner {
+  background: #fcc;
+  color: red;
+}
+
 .container-info-has-tabs img,
-.container-info-tab-row img {
+.container-info-tab-row img,
+.container-record-banner img {
   block-size: 16px;
   flex: 0 0 16px;
   margin-inline-end: 4px;
+}
+
+.container-record-banner img {
+  block-size: 24px;
+  flex: 0 0 24px;
+  margin-inline-end: 6px;
 }
 
 .container-info-tab-row img[src=""] {
@@ -749,7 +794,9 @@ span ~ .panel-header-text {
   background-color: #ebebeb;
 }
 
-.edit-containers-exit-text {
+.edit-containers-exit-text,
+.container-record-exit-text,
+.container-record-banner-text {
   align-items: center;
   background: var(--primary-action-color);
   block-size: 100%;
@@ -760,11 +807,13 @@ span ~ .panel-header-text {
   padding-inline-start: 30%;
 }
 
-.edit-containers-panel-footer {
+.edit-containers-panel-footer,
+.container-record-panel-footer {
   background: var(--primary-action-color);
 }
 
-.exit-edit-mode-link img {
+.exit-edit-mode-link img,
+.exit-record-mode-link img {
   block-size: 16px;
   display: inline;
   filter: grayscale(100%) brightness(5);
@@ -797,11 +846,13 @@ span ~ .panel-header-text {
   overflow: hidden; /* Bugfix: issue 948 */
 }
 
-#edit-sites-assigned {
+#edit-sites-assigned,
+#record-sites-assigned {
   flex: 1000; /* Bugfix: issue 948 */
 }
 
-#edit-sites-assigned h3 {
+#edit-sites-assigned h3,
+#record-sites-assigned h3 {
   font-size: 14px;
   font-weight: normal;
   padding-block-end: 6px;

@@ -94,6 +94,29 @@ const backgroundLogic = {
     });
   },
 
+  asPromise(value) {
+    if (value === undefined) { return value; }
+    if (value instanceof Promise) { return value; }
+    return Promise.resolve(value);
+  },
+  
+  asTabId(tabId) {
+    if (tabId === undefined || tabId === null) {
+      return browser.tabs.TAB_ID_NONE;
+    }
+    return tabId;
+  },
+  
+  async getTabOrNull(tabId) {
+    tabId = this.asTabId(tabId);
+    if (tabId !== browser.tabs.TAB_ID_NONE) {
+      try {
+        return await browser.tabs.get(tabId);
+      } catch(e) { /* Assume tabId is invalid */ }
+    }
+    return null;
+  },
+
   async getTabs(options) {
     const requiredArguments = ["cookieStoreId", "windowId"];
     this.checkArgs(requiredArguments, options, "getTabs");
@@ -329,5 +352,23 @@ const backgroundLogic = {
 
   cookieStoreId(userContextId) {
     return `firefox-container-${userContextId}`;
+  },
+  
+  async invokeBrowserMethod(name, args) {
+    let target = browser;
+    let indexOfDot;
+    while ((indexOfDot = name.indexOf(".")) !== -1) {
+      const targetName = name.substring(0, indexOfDot);
+      target = target[targetName];
+      name = name.substring(indexOfDot + 1);
+    }
+    const method = target[name];
+    let returnValue;
+    if (typeof method === "function" || (args && args.length > 0)) {
+      returnValue = method(...args);
+    } else {
+      returnValue = method;
+    }
+    return returnValue;
   }
 };
