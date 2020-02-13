@@ -660,7 +660,8 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       default:
         if ((e.keyCode >= 49 && e.keyCode <= 57) &&
             Logic._currentPanel === "containersList") {
-          const element = selectables[e.keyCode - 48];
+          const containers = document.querySelectorAll(".open-newtab");
+          const element = containers[e.keyCode - 48];
           if (element) {
             element.click();
           }
@@ -746,6 +747,7 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       manage.classList.add("show-tabs", "pop-button");
       manage.setAttribute("title", `View ${identity.name} container`);
       context.setAttribute("tabindex", "0");
+      manage.setAttribute("tabindex", "0");
       context.setAttribute("title", `Create ${identity.name} tab`);
       context.innerHTML = escaped`
         <div class="userContext-icon-wrapper open-newtab">
@@ -767,7 +769,10 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       }
 
       Logic.addEnterHandler(tr, async (e) => {
-        if (e.target.matches(".open-newtab")
+        if (e.target.matches(".show-tabs") && hasTabs) {
+          Logic.showPanel(P_CONTAINER_INFO, identity);
+        }
+        else if (e.target.matches(".open-newtab")
           || e.target.parentNode.matches(".open-newtab")
           || e.type === "keydown") {
           try {
@@ -778,8 +783,6 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
           } catch (e) {
             window.close();
           }
-        } else if (hasTabs) {
-          Logic.showPanel(P_CONTAINER_INFO, identity);
         }
       });
     });
