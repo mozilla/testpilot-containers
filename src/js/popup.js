@@ -610,7 +610,7 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       }
     });
 
-    document.addEventListener("keydown", (e) => {
+    document.addEventListener("keydown", (e) => {     
       const selectables = [...document.querySelectorAll("[tabindex='0'], [tabindex='-1']")];
       const element = document.activeElement;
       const index = selectables.indexOf(element) || 0;
@@ -723,7 +723,9 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
 
       const currentContainer = document.getElementById("current-container");
       currentContainer.innerText = identity.name;
-
+      if (identity.name === "Default"){
+        document.getElementById("container-page-assigned-label").style.display = "none";
+      }
       currentContainer.setAttribute("data-identity-color", identity.color);
     }
   },
@@ -807,13 +809,13 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
     /*  If no container is present disable the Edit Containers button */
     const editContainer = document.querySelector("#edit-containers-link");
     if (Logic.identities().length === 0) {
-      editContainer.classList.add("disable-edit-containers");
+      editContainer.classList.add("disable-edit-containers");   
     } else {
       editContainer.classList.remove("disable-edit-containers");
     }
 
     return Promise.resolve();
-  },
+  },  
 });
 
 // P_CONTAINER_INFO: More info about a container.
@@ -1007,8 +1009,6 @@ Logic.registerPanel(P_CONTAINERS_EDIT, {
       tr.querySelector(".container-name").textContent = identity.name;
       tr.querySelector(".edit-container").setAttribute("title", `Edit ${identity.name} container`);
       tr.querySelector(".remove-container").setAttribute("title", `Remove ${identity.name} container`);
-
-
       Logic.addEnterHandler(tr, e => {
         if (e.target.matches(".edit-container-icon") || e.target.parentNode.matches(".edit-container-icon")) {
           Logic.showPanel(P_CONTAINER_EDIT, identity);
@@ -1017,12 +1017,11 @@ Logic.registerPanel(P_CONTAINERS_EDIT, {
         }
       });
     });
-
+   
     const list = document.querySelector("#edit-identities-list");
 
     list.innerHTML = "";
     list.appendChild(fragment);
-
     return Promise.resolve(null);
   },
 });
