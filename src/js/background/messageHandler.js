@@ -40,6 +40,9 @@ const messageHandler = {
           return assignManager._setOrRemoveAssignment(tab.id, m.url, m.userContextId, m.value);
         });
         break;
+      case "sortTabsByWindow":
+        backgroundLogic.sortTabsByWindow();
+        break;
       case "sortTabs":
         backgroundLogic.sortTabs();
         break;

@@ -486,28 +486,28 @@ manage things like container crud */
 
 .container-panel-controls {
   display: flex;
-  justify-content: flex-end;
   margin-block-end: var(--block-line-space-size);
   margin-block-start: var(--block-line-space-size);
-  margin-inline-end: var(--inline-item-space-size);
-  margin-inline-start: var(--inline-item-space-size);
 }
 
-#container-panel #sort-containers-link {
+#container-panel .sort-link {
   align-items: center;
   block-size: var(--block-url-label-size);
   border: 1px solid #d8d8d8;
   border-radius: var(--small-radius);
   color: var(--title-text-color);
   display: flex;
+  flex-grow: 1;
   font-size: var(--small-text-size);
   inline-size: var(--inline-button-size);
   justify-content: center;
+  margin-left: var(--block-line-space-size);
+  margin-right: var(--block-line-space-size);
   text-decoration: none;
 }
 
-#container-panel #sort-containers-link:hover,
-#container-panel #sort-containers-link:focus {
+#container-panel .sort-link:hover,
+#container-panel .sort-link:focus {
   background: #f2f2f2;
 }
 

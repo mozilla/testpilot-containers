@@ -237,6 +237,56 @@ const backgroundLogic = {
     return identitiesOutput;
   },
 
+  async sortTabsByWindow() {
+    const windows = await browser.windows.getAll();
+    let containers = new Set();
+
+    // loop through each tab to find all active containers
+    for (const windowObj of windows) {
+      const tabs = await browser.tabs.query({windowId: windowObj.id});
+      for (const tab of tabs) {
+        containers.add(tab.cookieStoreId);
+      }
+    }
+    containers = Array.from(containers);
+
+    // for each container, move all related tabs to its window
+    for (let i = 0; i < containers.length; i++) {
+      // if no window is available, then pass -1
+      const windowId = (i < windows.length) ? windows[i].id : -1;
+      await this._sortTabsByWindowInternal(windowId, containers[i]);
+    }
+
+  },
+
+  async _sortTabsByWindowInternal(windowId, cookieStoreId) {
+    let newlyOpenedTabId = null;
+    const tabs = await browser.tabs.query({
+      "cookieStoreId": cookieStoreId
+    });
+
+    // create a new window so that move tabs to the new window
+    if (windowId === -1) {
+      const newWindowObj = await browser.windows.create();
+      windowId = newWindowObj.id;
+      // Since creating new window will open a default tab,
+      // take the tab id here, and we could delete it after moving
+      newlyOpenedTabId = newWindowObj.tabs[0].id;
+    }
+
+    // move all tabs
+    await browser.tabs.move(tabs.map((tab) => tab.id), {
+      windowId: windowId,
+      index: -1
+    });
+
+    // if new window is created, then close newly opened tab by its id
+    if (newlyOpenedTabId !== null) {
+      browser.tabs.remove(newlyOpenedTabId);
+    }
+
+  },
+
   async sortTabs() {
     const windows = await browser.windows.getAll();
     for (let windowObj of windows) { // eslint-disable-line prefer-const

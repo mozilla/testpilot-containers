@@ -599,6 +599,17 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       }
     });
 
+    Logic.addEnterHandler(document.querySelector("#sort-containers-link-window"), async () => {
+      try {
+        await browser.runtime.sendMessage({
+          method: "sortTabsByWindow"
+        });
+        window.close();
+      } catch (e) {
+        window.close();
+      }
+    });
+
     Logic.addEnterHandler(document.querySelector("#sort-containers-link"), async () => {
       try {
         await browser.runtime.sendMessage({
