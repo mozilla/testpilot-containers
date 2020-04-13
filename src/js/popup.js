@@ -77,7 +77,7 @@ const Logic = {
   _previousPanel: null,
   _panels: {},
   _onboardingVariation: null,
-
+  _currentSelectedIdentities: [],
   async init() {
     // Remove browserAction "upgraded" badge when opening panel
     this.clearBrowserActionBadge();
@@ -265,6 +265,10 @@ const Logic = {
     });
   },
 
+  async resetSelectedIdentities() {
+    this._currentSelectedIdentities = [];
+  },
+
   getPanelSelector(panel) {
     if (this._onboardingVariation === "securityOnboarding" &&
     // eslint-disable-next-line no-prototype-builtins
@@ -329,6 +333,26 @@ const Logic = {
       throw new Error("CurrentIdentity must be set before calling Logic.currentIdentity.");
     }
     return this._currentIdentity;
+  },
+  currentSelectedIdentities() {
+    if (!this._currentSelectedIdentities) {
+      throw new Error("current Selected Identities must be set before calling Logic.currentSelectedIdentities.");
+    }
+    return this._currentSelectedIdentities;
+  },
+
+  addSelectedIdentity(identity) {
+    if (!this._currentSelectedIdentities.includes(identity)) {
+      this._currentSelectedIdentities.push(identity);
+    }
+  },
+
+  removeSelectedIdentity(identity) {
+    const index = this._currentSelectedIdentities.indexOf(identity);
+
+    if (index !== -1) {
+      this._currentSelectedIdentities.splice(index, 1);
+    }
   },
 
   currentUserContextId() {
@@ -960,23 +984,69 @@ Logic.registerPanel(P_CONTAINER_INFO, {
 
 Logic.registerPanel(P_CONTAINERS_EDIT, {
   panelSelector: "#edit-containers-panel",
+  lastSelected: null,
+  shiftOn: false,
+
+  /*  This function is the handler of deletion for both keypress delete and delete button.
+      The keypress delete support for both backspace and delete key.
+   */
+  async _deleteHandler() {
+    const selectedIdentities = Logic.currentSelectedIdentities();
+    if (selectedIdentities.length > 0) {
+      await Logic.showPanel(P_CONTAINER_DELETE);
+    }
+  },
+
+  /*  The function is to update the delete button.
+      The delete button shows up once any containers are selected.
+   */
+  _updateDeleteButton(selectedContainers) {
+    const deleteButton = document.querySelector("div.panel-footer.panel-footer-secondary");
+    if (selectedContainers.length === 0) {
+      deleteButton.classList.add("hide");
+    } else {
+      deleteButton.classList.remove("hide");
+    }
+  },
 
   // This method is called when the object is registered.
   initialize() {
     Logic.addEnterHandler(document.querySelector("#exit-edit-mode-link"), () => {
       Logic.showPanel(P_CONTAINERS_LIST);
     });
+
+    // add delete handler
+    Logic.addEnterHandler(document.querySelector("#delete-link"), this._deleteHandler);
+
+    // set up key down to listen for shift key, backspace key and delete key
+    document.addEventListener("keydown", e => {
+      if (e.keyCode === 16) {
+        this.shiftOn = true;
+      } else if (e.keyCode === 8 || e.keyCode === 46) {
+        this._deleteHandler();
+      }
+    });
+
+    // set up key down to listen for shift key
+    document.addEventListener("keyup", e => {
+      if (e.keyCode === 16) {
+        this.shiftOn = false;
+      }
+    });
   },
 
   // This method is called when the panel is shown.
   prepare() {
+    // reset the selection and delete button style on init
+    Logic.resetSelectedIdentities();
+    this._updateDeleteButton(Logic.currentSelectedIdentities());
     const fragment = document.createDocumentFragment();
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
       fragment.appendChild(tr);
       tr.classList.add("container-panel-row");
       tr.innerHTML = escaped`
-        <td class="userContext-wrapper">
+        <td class="userContext-wrapper select-container">
           <div class="userContext-icon-wrapper">
             <div class="usercontext-icon"
               data-identity-icon="${identity.icon}"
@@ -1006,6 +1076,44 @@ Logic.registerPanel(P_CONTAINERS_EDIT, {
           Logic.showPanel(P_CONTAINER_EDIT, identity);
         } else if (e.target.matches(".delete-container-icon") || e.target.parentNode.matches(".delete-container-icon")) {
           Logic.showPanel(P_CONTAINER_DELETE, identity);
+        } else if (e.target.matches(".select-container") || e.target.parentNode.matches(".select-container")) {
+          // get the selections and index of current container identity
+          const currentSelectedIdentity = Logic.currentSelectedIdentities();
+          const index = currentSelectedIdentity.indexOf(identity);
+
+          // case of there is one container is trying to be selected/unselected
+          if (!this.lastSelected || !this.shiftOn || currentSelectedIdentity.length === 0) {
+            this.lastSelected = identity;
+          }
+
+          // get range of containers who need to be operated
+          const identities = Logic.identities();
+          let start = identities.indexOf(this.lastSelected);
+          let end = Logic.identities().indexOf(identity);
+          if (start > end) {
+            start = [end, end=start][0];
+          }
+
+          // get container panel rows to update highlight status
+          const rows = document.querySelectorAll(".unstriped .container-panel-row");
+
+
+          // select or unselected target containers
+          if (index === -1) {
+            for (let i = start; i <= end; i++) {
+              Logic.addSelectedIdentity(identities[i]);
+              rows[i].classList.add("highlight");
+            }
+          } else {
+            for (let i = start; i <= end; i++) {
+              Logic.removeSelectedIdentity(identities[i]);
+              rows[i].classList.remove("highlight");
+            }
+          }
+
+          this.lastSelected = identity;
+          // update style of delete button
+          this._updateDeleteButton(currentSelectedIdentity);
         }
       });
     });
@@ -1190,6 +1298,8 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
   // This method is called when the object is registered.
   initialize() {
     Logic.addEnterHandler(document.querySelector("#delete-container-cancel-link"), () => {
+      // reset selected item on init.
+      Logic.resetSelectedIdentities();
       Logic.showPreviousPanel();
     });
 
@@ -1199,35 +1309,78 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
           if you want to do anything post delete do it in the background script.
           Browser console currently warns about not listening also.
       */
+
+      // if current identity is not defined, then set the selected list to the selected list
+      // Note: when current Selection is defined, it means it is invoke from a single deletion mode.
+      let currentSelection;
       try {
-        await Logic.removeIdentity(Logic.userContextId(Logic.currentIdentity().cookieStoreId));
+        currentSelection = [Logic.currentIdentity()];
+      } catch (e) {
+        currentSelection = Logic.currentSelectedIdentities();
+      }
+
+      try {
+        // loop through each selected container and delete it one by one
+        for (let i = 0; i < currentSelection.length; i++) {
+          await Logic.removeIdentity(Logic.userContextId(currentSelection[i].cookieStoreId));
+        }
+        // refresh and reset the identities
         await Logic.refreshIdentities();
+        await Logic.resetSelectedIdentities();
+        // goes back to previous panel
         Logic.showPreviousPanel();
       } catch (e) {
-        Logic.showPanel(P_CONTAINERS_LIST);
+        await Logic.showPanel(P_CONTAINERS_LIST);
       }
     });
   },
 
   // This method is called when the panel is shown.
   prepare() {
-    const identity = Logic.currentIdentity();
+    let currentSelection;
+    let totalNumberOfTabs = 0;
+    let containerString = "";
 
+    // if current identity is not defined, then set the selected list to the selected list
+    // Note: when current Selection is defined, it means it is invoke from a single deletion mode.
+    try {
+      currentSelection = [Logic.currentIdentity()];
+    } catch (e) {
+      currentSelection = Logic.currentSelectedIdentities();
+    }
     // Populating the panel: name, icon, and warning message
-    document.getElementById("delete-container-name").textContent = identity.name;
-
-    const totalNumberOfTabs = identity.numberOfHiddenTabs + identity.numberOfOpenTabs;
+    // reset the content of confirm page.
+    document.getElementById("delete-container-tab-warning").textContent = "";
+    // count number of affected tabs
+    for (let i = 0; i < currentSelection.length; i++) {
+      const identity = currentSelection[i];
+      totalNumberOfTabs += identity.numberOfHiddenTabs + identity.numberOfOpenTabs;
+    }
+    const icon = document.getElementById("delete-container-icon");
+    // Note: if the length is one, then it is a single deletion
+    // Set confirm page content depending on whether is single deletion or multiple deletion
+    if (currentSelection.length === 1 ) {
+      document.getElementById("delete-container-name").textContent = currentSelection[0].name;
+      // update icon style for single deletion
+      icon.style.visibility = "visible";
+      icon.style.marginLeft = "0px";
+      icon.setAttribute("data-identity-icon", currentSelection[0].icon);
+      icon.setAttribute("data-identity-color", currentSelection[0].color);
+      containerString = "this container";
+    } else {
+      // update icon for multiple deletion
+      icon.style.visibility = "hidden";
+      icon.style.marginLeft = "-16px";
+      document.getElementById("delete-container-name").textContent = "Containers";
+      containerString = "this " + currentSelection.length + " containers";
+    }
     let warningMessage = "";
+    // update the confirm page content when there are at least 1 affected tabs
     if (totalNumberOfTabs > 0) {
       const grammaticalNumTabs = totalNumberOfTabs > 1 ? "tabs" : "tab";
-      warningMessage = `If you remove this container now, ${totalNumberOfTabs} container ${grammaticalNumTabs} will be closed.`;
+      warningMessage =`If you remove ${containerString} now, ${totalNumberOfTabs} container ${grammaticalNumTabs} will be closed.`;
     }
-    document.getElementById("delete-container-tab-warning").textContent = warningMessage;
-
-    const icon = document.getElementById("delete-container-icon");
-    icon.setAttribute("data-identity-icon", identity.icon);
-    icon.setAttribute("data-identity-color", identity.color);
-
+    document.getElementById("delete-container-tab-warning").textContent += warningMessage + ` Are you sure you want to remove ${containerString}?`;
     return Promise.resolve(null);
   },
 });

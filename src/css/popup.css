@@ -668,6 +668,14 @@ span ~ .panel-header-text {
   fill: #0094fb;
 }
 
+.container-panel-row:hover {
+  background-color: #ebebeb !important;
+}
+
+.highlight {
+  background-color: #0094fb3f !important;
+}
+
 /* Panel Footer */
 .panel-footer {
   align-items: center;
