@@ -506,11 +506,6 @@ manage things like container crud */
   text-decoration: none;
 }
 
-#container-panel #sort-containers-link:hover,
-#container-panel #sort-containers-link:focus {
-  background: #f2f2f2;
-}
-
 span ~ .panel-header-text {
   padding-block-end: 0;
   padding-block-start: 0;
