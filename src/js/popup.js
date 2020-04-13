@@ -1042,6 +1042,30 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       Logic.showPreviousPanel();
     });
 
+    Logic.addEnterHandler(document.querySelector("#website-add-link"), () => {
+      const sitesList = document.querySelector(".assigned-sites-list");
+      const trElement = document.createElement("div");
+      trElement.innerHTML = escaped`
+      <div class="truncated-text hostname">
+        <input id="site-editor" />
+      </div>`;
+      trElement.classList.add("container-info-tab-row");
+      Logic.addEnterHandler(trElement.querySelector("#site-editor"), async (e) => {
+        let newurl = e.target.value;
+        if (!newurl.startsWith("http:") && !newurl.startsWith("https:")) {
+          newurl = "https://" + newurl;
+        }
+        const userContextId = Logic.currentUserContextId();
+        const currentTab = await Logic.currentTab();
+        const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
+        Logic.setOrRemoveAssignment(currentTab.id, newurl, userContextId, false);
+        assignments["siteContainerMap@@_" + e.target.value] = {hostname: e.target.value};
+        this.showAssignedContainers(assignments);
+      });
+      sitesList.appendChild(trElement);
+      trElement.querySelector("#site-editor").focus();
+    });
+
     this._editForm = document.getElementById("edit-container-panel-form");
     const editLink = document.querySelector("#edit-container-ok-link");
     Logic.addEnterHandler(editLink, () => {
@@ -1081,7 +1105,8 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
   showAssignedContainers(assignments) {
     const assignmentPanel = document.getElementById("edit-sites-assigned");
     const assignmentKeys = Object.keys(assignments);
-    assignmentPanel.hidden = !(assignmentKeys.length > 0);
+    const userContextId = Logic.currentUserContextId();
+    assignmentPanel.hidden = !userContextId;
     if (assignments) {
       const tableElement = assignmentPanel.querySelector(".assigned-sites-list");
       /* Remove previous assignment list,
@@ -1161,7 +1186,6 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
     this.showAssignedContainers(assignments);
     document.querySelector("#edit-container-panel .panel-footer").hidden = !!userContextId;
-
     document.querySelector("#edit-container-panel-name-input").value = identity.name || "";
     document.querySelector("#edit-container-panel-usercontext-input").value = userContextId || NEW_CONTAINER_ID;
     const containerName = document.querySelector("#edit-container-panel-name-input");
