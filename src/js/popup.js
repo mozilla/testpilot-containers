@@ -997,9 +997,12 @@ Logic.registerPanel(P_CONTAINERS_EDIT, {
           />
         </td>`;
       tr.querySelector(".container-name").textContent = identity.name;
-      tr.querySelector(".edit-container").setAttribute("title", `Edit ${identity.name} container`);
-      tr.querySelector(".remove-container").setAttribute("title", `Remove ${identity.name} container`);
-
+      const edit = tr.querySelector(".edit-container");
+      edit.setAttribute("title", `Edit ${identity.name} container`);
+      edit.setAttribute("tabindex", "0");
+      const remove = tr.querySelector(".remove-container");
+      remove.setAttribute("title", `Remove ${identity.name} container`);
+      remove.setAttribute("tabindex", "0");
 
       Logic.addEnterHandler(tr, e => {
         if (e.target.matches(".edit-container-icon") || e.target.parentNode.matches(".edit-container-icon")) {
