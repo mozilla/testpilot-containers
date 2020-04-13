@@ -699,6 +699,10 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
     const currentTabElement = document.getElementById("current-tab");
     const assignmentCheckboxElement = document.getElementById("container-page-assigned");
     const currentTabUserContextId = Logic.userContextId(currentTab.cookieStoreId);
+
+    // add this line 
+    const tooltiptext = document.getElementById("tooltiptext");
+    
     assignmentCheckboxElement.addEventListener("change", () => {
       Logic.setOrRemoveAssignment(currentTab.id, currentTab.url, currentTabUserContextId, !assignmentCheckboxElement.checked);
     });
@@ -710,6 +714,10 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       this.setupAssignmentCheckbox(siteSettings, currentTabUserContextId);
       const currentPage = document.getElementById("current-page");
       currentPage.innerHTML = escaped`<span class="page-title truncate-text">${currentTab.title}</span>`;
+
+      // added this line
+      tooltiptext.innerHTML = escaped`<span class="page-title truncate-tex" style="font-size:15px">${currentTab.title}</span>`;
+      
       const favIconElement = Utils.createFavIconElement(currentTab.favIconUrl || "");
       currentPage.prepend(favIconElement);
 
