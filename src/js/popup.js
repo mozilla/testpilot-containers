@@ -1054,6 +1054,11 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       this._submitForm();
     });
 
+    // Add new site to current container
+    const siteLink = document.querySelector("#edit-container-site-link");
+    Logic.addEnterHandler(siteLink, () => {
+      this._addSite();
+    });
 
   },
 
@@ -1076,6 +1081,49 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     } catch (e) {
       Logic.showPanel(P_CONTAINERS_LIST);
     }
+  },
+
+  async _addSite() {
+    // Get URL and container ID from form
+    const formValues = new FormData(this._editForm);
+    const url = formValues.get("site-name");
+    const userContextId = formValues.get("container-id");
+    const currentTab = await Logic.currentTab();
+    const tabId = currentTab.id;
+    const fullURL = this.checkUrl(url);
+
+    if (fullURL !== null) { 
+      // Assign URL to container
+      await Logic.setOrRemoveAssignment(tabId, fullURL, userContextId, false);
+
+      // Clear form
+      document.querySelector("#edit-container-panel-site-input").value = "";
+
+      // Show new assignments
+      const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
+      this.showAssignedContainers(assignments); 
+    }
+  },
+
+  checkUrl(url){
+    const validUrl = /[\w.-]+(?:\.[\w.-]+)/g;
+    const regexProtocol = /^https?:\/\/.*/g;
+    const valid = /((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www\.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)((?:\/[+~%/.\w\-_]*)?\??(?:[-+=&;%@.\w_]*)#?(?:[.!/\\\w]*))?)/g;
+    let newURL = url;
+    
+    if (!url.match(validUrl)) {
+      return null;
+    }
+
+    // append "https://" if protocol not found
+    if (!url.match(regexProtocol)) {
+      newURL = "https://" + url;
+    }
+
+    if (!newURL.match(valid)) {
+      return null;
+    }
+    return newURL;
   },
 
   showAssignedContainers(assignments) {
@@ -1161,7 +1209,10 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
     this.showAssignedContainers(assignments);
     document.querySelector("#edit-container-panel .panel-footer").hidden = !!userContextId;
-
+    // Only show ability to add site if it's an existing container
+    document.querySelector("#edit-container-panel-add-site").hidden = !userContextId;
+    // Make site input empty
+    document.querySelector("#edit-container-panel-site-input").value = "";
     document.querySelector("#edit-container-panel-name-input").value = identity.name || "";
     document.querySelector("#edit-container-panel-usercontext-input").value = userContextId || NEW_CONTAINER_ID;
     const containerName = document.querySelector("#edit-container-panel-name-input");
