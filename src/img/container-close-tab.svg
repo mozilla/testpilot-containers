@@ -1,3 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 7">
-	<polygon fill="#4c4c4c" points="5.8,0 3.5,2.4 1.2,0 0,1.2 2.4,3.5 0.1,5.8 1.2,7 3.5,4.7 5.8,7 7,5.8 4.7,3.5 7,1.2"/>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7 7">
+	<polygon fill="#FFFFFF" points="5.8,0 3.5,2.4 1.2,0 0,1.2 2.4,3.5 0.1,5.8 1.2,7 3.5,4.7 5.8,7 7,5.8 4.7,3.5 7,1.2"/>
 </svg>

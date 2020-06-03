@@ -1,0 +1,9 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. --><svg data-name="Flat (For Export)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+  <style>rect,path {fill: rgba(249, 249, 250, 0.8);}</style>
+  <rect x="1" y="1" width="6" height="6" rx="1"/>
+  <path d="M14.75 3H13V1.25A0.25 0.25 0 0 0 12.75 1h-1.5A0.25 0.25 0 0 0 11 1.25V3H9.25A0.25 0.25 0 0 0 9 3.25v1.5A0.25 0.25 0 0 0 9.25 5H11v1.75A0.25 0.25 0 0 0 11.25 7h1.5A0.25 0.25 0 0 0 13 6.75V5h1.75A0.25 0.25 0 0 0 15 4.75v-1.5A0.25 0.25 0 0 0 14.75 3z" fill-rule="evenodd"/>
+  <rect x="1" y="9" width="6" height="6" rx="1"/>
+  <rect x="9" y="9" width="6" height="6" rx="1"/>
+</svg>

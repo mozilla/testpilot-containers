@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Firefox Multi-Account Containers",
-  "version": "6.2.0",
+  "version": "6.2.5",
   "incognito": "not_allowed",
   "description": "Multi-Account Containers helps you keep all the parts of your online life contained in different tabs. Custom labels and color-coded tabs help keep different activities — like online shopping, travel planning, or checking work email — separate.",
   "icons": {
@@ -39,20 +39,88 @@
         "mac": "MacCtrl+Period"
       },
       "description": "Open containers panel"
+    },
+    "open_container_0": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+1"
+      },
+      "description": "Container Shortcut 1"
+    },
+    "open_container_1": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+2"
+      },
+      "description": "Container Shortcut 2"
+    },
+    "open_container_2": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+3"
+      },
+      "description": "Container Shortcut 3"
+    },
+    "open_container_3": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+4"
+      },
+      "description": "Container Shortcut 4"
+    },
+    "open_container_4": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+5"
+      },
+      "description": "Container Shortcut 5"
+    },
+    "open_container_5": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+6"
+      },
+      "description": "Container Shortcut 6"
+    },
+    "open_container_6": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+7"
+      },
+      "description": "Container Shortcut 7"
+    },
+    "open_container_7": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+8"
+      },
+      "description": "Container Shortcut 8"
+    },
+    "open_container_8": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+9"
+      },
+      "description": "Container Shortcut 9"
+    },
+    "open_container_9": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+0"
+      },
+      "description": "Container Shortcut 10"
     }
   },
   "browser_action": {
     "browser_style": true,
-    "default_icon": "img/container-site.svg",
+    "default_icon": "img/multiaccountcontainer-16.svg",
     "default_title": "Multi-Account Containers",
     "default_popup": "popup.html",
     "theme_icons": [
       {
-        "light": "img/container-site-light.svg",
-        "dark": "img/container-site.svg",
+        "light": "img/multiaccountcontainer-16-dark.svg",
+        "dark": "img/multiaccountcontainer-16.svg",
         "size": 32
       }
     ]
+  },
+  "page_action": {
+    "browser_style": true,
+    "default_icon": "img/container-openin-16.svg",
+    "default_title": "Always open this in a Container",
+    "default_popup": "pageActionPopup.html",
+    "pinned": false,
+    "show_matches": ["*://*/*"]
   },
   "background": {
     "page": "js/background/index.html"

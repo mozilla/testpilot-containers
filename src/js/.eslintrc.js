@@ -8,6 +8,7 @@ module.exports = {
     "backgroundLogic": true,
     "identityState": true,
     "messageHandler": true,
-    "sync": true
+    "sync": true,
+    "Utils": true
   }
 };

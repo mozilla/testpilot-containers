@@ -10,6 +10,11 @@
   "rules": {
     "declaration-block-no-duplicate-properties": true,
     "order/declaration-block-properties-alphabetical-order": true,
+    "property-no-unknown": [
+      true, {
+        ignoreProperties: 
+          ["inset-block-end", "inset-block-start"]
+    }],
     "property-blacklist": [
       "/(min[-]|max[-])height/",
       "/width/",

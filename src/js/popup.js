@@ -2,8 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const CONTAINER_HIDE_SRC = "/img/container-hide.svg";
-const CONTAINER_UNHIDE_SRC = "/img/container-unhide.svg";
+const CONTAINER_HIDE_SRC = "/img/password-hide.svg";
+const CONTAINER_UNHIDE_SRC = "/img/password-hide.svg";
 
 const DEFAULT_COLOR = "blue";
 const DEFAULT_ICON = "circle";
@@ -20,47 +20,16 @@ const P_ONBOARDING_5 = "onboarding5";
 const P_ONBOARDING_6 = "onboarding6";
 const P_ONBOARDING_7 = "onboarding7";
 const P_CONTAINERS_LIST = "containersList";
-const P_CONTAINERS_EDIT = "containersEdit";
+const OPEN_NEW_CONTAINER_PICKER = "new-tab";
+const MANAGE_CONTAINERS_PICKER = "manage";
+const REOPEN_IN_CONTAINER_PICKER = "reopen-in";
+const ALWAYS_OPEN_IN_PICKER = "always-open-in";
 const P_CONTAINER_INFO = "containerInfo";
 const P_CONTAINER_EDIT = "containerEdit";
 const P_CONTAINER_DELETE = "containerDelete";
 const P_CONTAINERS_ACHIEVEMENT = "containersAchievement";
+const P_CONTAINER_ASSIGNMENTS = "containerAssignments";
 
-/**
- * Escapes any occurances of &, ", <, > or / with XML entities.
- *
- * @param {string} str
- *        The string to escape.
- * @return {string} The escaped string.
- */
-function escapeXML(str) {
-  const replacements = { "&": "&amp;", "\"": "&quot;", "'": "&apos;", "<": "&lt;", ">": "&gt;", "/": "&#x2F;" };
-  return String(str).replace(/[&"'<>/]/g, m => replacements[m]);
-}
-
-/**
- * A tagged template function which escapes any XML metacharacters in
- * interpolated values.
- *
- * @param {Array<string>} strings
- *        An array of literal strings extracted from the templates.
- * @param {Array} values
- *        An array of interpolated values extracted from the template.
- * @returns {string}
- *        The result of the escaped values interpolated with the literal
- *        strings.
- */
-function escaped(strings, ...values) {
-  const result = [];
-
-  for (const [i, string] of strings.entries()) {
-    result.push(string);
-    if (i < values.length)
-      result.push(escapeXML(values[i]));
-  }
-
-  return result.join("");
-}
 
 async function getExtensionInfo() {
   const manifestPath = browser.extension.getURL("manifest.json");
@@ -74,7 +43,7 @@ const Logic = {
   _identities: [],
   _currentIdentity: null,
   _currentPanel: null,
-  _previousPanel: null,
+  _previousPanelPath: [],
   _panels: {},
   _onboardingVariation: null,
 
@@ -197,50 +166,23 @@ const Logic = {
     }
   },
 
-  addEnterHandler(element, handler) {
-    element.addEventListener("click", (e) => {
-      handler(e);
-    });
-    element.addEventListener("keydown", (e) => {
-      if (e.keyCode === 13) {
-        e.preventDefault();
-        handler(e);
-      }
-    });
-  },
-
-  userContextId(cookieStoreId = "") {
-    const userContextId = cookieStoreId.replace("firefox-container-", "");
-    return (userContextId !== cookieStoreId) ? Number(userContextId) : false;
-  },
-
-  async currentTab() {
-    const activeTabs = await browser.tabs.query({ active: true, windowId: browser.windows.WINDOW_ID_CURRENT });
-    if (activeTabs.length > 0) {
-      return activeTabs[0];
-    }
-    return false;
-  },
-
   async numTabs() {
     const activeTabs = await browser.tabs.query({ windowId: browser.windows.WINDOW_ID_CURRENT });
     return activeTabs.length;
   },
 
-  _disableMoveTabs(message) {
-    const moveTabsEl = document.querySelector("#container-info-movetabs");
-    const fragment = document.createDocumentFragment();
-    const incompatEl = document.createElement("div");
+  _disableMenuItem(message, elementToDisable = document.querySelector("#move-to-new-window")) {
+    elementToDisable.setAttribute("title", message);
+    elementToDisable.removeAttribute("tabindex");
+    elementToDisable.classList.remove("hover-highlight");
+    elementToDisable.classList.add("disabled-menu-item");
+  },
 
-    moveTabsEl.classList.remove("clickable");
-    moveTabsEl.setAttribute("title", message);
-
-    fragment.appendChild(incompatEl);
-    incompatEl.setAttribute("id", "container-info-movetabs-incompat");
-    incompatEl.textContent = message;
-    incompatEl.classList.add("container-info-tab-row");
-
-    moveTabsEl.parentNode.insertBefore(fragment, moveTabsEl.nextSibling);
+  _enableMenuItems(elementToEnable = document.querySelector("#move-to-new-window")) {
+    elementToEnable.removeAttribute("title");
+    elementToEnable.setAttribute("tabindex", "0");
+    elementToEnable.classList.add("hover-highlight");
+    elementToEnable.classList.remove("disabled-menu-item");
   },
 
   async refreshIdentities() {
@@ -260,6 +202,7 @@ const Logic = {
         identity.hasHiddenTabs = stateObject.hasHiddenTabs;
         identity.numberOfHiddenTabs = stateObject.numberOfHiddenTabs;
         identity.numberOfOpenTabs = stateObject.numberOfOpenTabs;
+        identity.isIsolated = stateObject.isIsolated;
       }
       return identity;
     });
@@ -275,13 +218,15 @@ const Logic = {
     }
   },
 
-  async showPanel(panel, currentIdentity = null) {
+  async showPanel(panel, currentIdentity = null, backwards = false) {
     // Invalid panel... ?!?
     if (!(panel in this._panels)) {
       throw new Error("Something really bad happened. Unknown panel: " + panel);
     }
+    if (!backwards || !this._currentPanel) {
+      this._previousPanelPath.push(this._currentPanel);
+    }
 
-    this._previousPanel = this._currentPanel;
     this._currentPanel = panel;
 
     this._currentIdentity = currentIdentity;
@@ -308,11 +253,10 @@ const Logic = {
   },
 
   showPreviousPanel() {
-    if (!this._previousPanel) {
+    if (!this._previousPanelPath) {
       throw new Error("Current panel not set!");
     }
-
-    this.showPanel(this._previousPanel, this._currentIdentity);
+    this.showPanel(this._previousPanelPath.pop(), this._currentIdentity, true);
   },
 
   registerPanel(panelName, panelObject) {
@@ -333,7 +277,7 @@ const Logic = {
 
   currentUserContextId() {
     const identity = Logic.currentIdentity();
-    return Logic.userContextId(identity.cookieStoreId);
+    return Utils.userContextId(identity.cookieStoreId);
   },
 
   currentCookieStoreId() {
@@ -369,16 +313,6 @@ const Logic = {
     });
   },
 
-  setOrRemoveAssignment(tabId, url, userContextId, value) {
-    return browser.runtime.sendMessage({
-      method: "setOrRemoveAssignment",
-      tabId,
-      url,
-      userContextId,
-      value
-    });
-  },
-
   generateIdentityName() {
     const defaultName = "Container #";
     const ids = [];
@@ -405,6 +339,16 @@ const Logic = {
     const panelItem = this._panels[this._currentPanel];
     return document.querySelector(this.getPanelSelector(panelItem));
   },
+
+  listenToPickerBackButton() {
+    const closeContEl = document.querySelector("#close-container-picker-panel");
+    if (!this._listenerSet) {
+      Utils.addEnterHandler(closeContEl, () => {
+        Logic.showPreviousPanel();
+      });
+      this._listenerSet = true;
+    }
+  }
 };
 
 // P_ONBOARDING_1: First page for Onboarding.
@@ -418,7 +362,7 @@ Logic.registerPanel(P_ONBOARDING_1, {
   initialize() {
     // Let's move to the next panel.
     [...document.querySelectorAll(".onboarding-start-button")].forEach(startElement => {
-      Logic.addEnterHandler(startElement, async () => {
+      Utils.addEnterHandler(startElement, async () => {
         await Logic.setOnboardingStage(1);
         Logic.showPanel(P_ONBOARDING_2);
       });
@@ -442,7 +386,7 @@ Logic.registerPanel(P_ONBOARDING_2, {
   initialize() {
     // Let's move to the containers list panel.
     [...document.querySelectorAll(".onboarding-next-button")].forEach(nextElement => {
-      Logic.addEnterHandler(nextElement, async () => {
+      Utils.addEnterHandler(nextElement, async () => {
         await Logic.setOnboardingStage(2);
         Logic.showPanel(P_ONBOARDING_3);
       });
@@ -466,7 +410,7 @@ Logic.registerPanel(P_ONBOARDING_3, {
   initialize() {
     // Let's move to the containers list panel.
     [...document.querySelectorAll(".onboarding-almost-done-button")].forEach(almostElement => {
-      Logic.addEnterHandler(almostElement, async () => {
+      Utils.addEnterHandler(almostElement, async () => {
         await Logic.setOnboardingStage(3);
         Logic.showPanel(P_ONBOARDING_4);
       });
@@ -488,7 +432,7 @@ Logic.registerPanel(P_ONBOARDING_4, {
   // This method is called when the object is registered.
   initialize() {
     // Let's move to the containers list panel.
-    Logic.addEnterHandler(document.querySelector("#onboarding-done-button"), async () => {
+    Utils.addEnterHandler(document.querySelector("#onboarding-done-button"), async () => {
       await Logic.setOnboardingStage(4);
       Logic.showPanel(P_ONBOARDING_5);
     });
@@ -509,7 +453,7 @@ Logic.registerPanel(P_ONBOARDING_5, {
   // This method is called when the object is registered.
   initialize() {
     // Let's move to the containers list panel.
-    Logic.addEnterHandler(document.querySelector("#onboarding-longpress-button"), async () => {
+    Utils.addEnterHandler(document.querySelector("#onboarding-longpress-button"), async () => {
       await Logic.setOnboardingStage(5);
       Logic.showPanel(P_ONBOARDING_6);
     });
@@ -530,7 +474,7 @@ Logic.registerPanel(P_ONBOARDING_6, {
   // This method is called when the object is registered.
   initialize() {
     // Let's move to the containers list panel.
-    Logic.addEnterHandler(document.querySelector("#start-sync-button"), async () => {
+    Utils.addEnterHandler(document.querySelector("#start-sync-button"), async () => {
       await Logic.setOnboardingStage(6);
       await browser.storage.local.set({syncEnabled: true});
       await browser.runtime.sendMessage({
@@ -538,7 +482,7 @@ Logic.registerPanel(P_ONBOARDING_6, {
       });
       Logic.showPanel(P_ONBOARDING_7);
     });
-    Logic.addEnterHandler(document.querySelector("#no-sync"), async () => {
+    Utils.addEnterHandler(document.querySelector("#no-sync"), async () => {
       await Logic.setOnboardingStage(7);
       await browser.storage.local.set({syncEnabled: false});
       await browser.runtime.sendMessage({
@@ -563,14 +507,14 @@ Logic.registerPanel(P_ONBOARDING_7, {
   // This method is called when the object is registered.
   initialize() {
     // Let's move to the containers list panel.
-    Logic.addEnterHandler(document.querySelector("#sign-in"), async () => {
+    Utils.addEnterHandler(document.querySelector("#sign-in"), async () => {
       browser.tabs.create({
         url: "https://accounts.firefox.com/?service=sync&action=email&context=fx_desktop_v3&entrypoint=multi-account-containers&utm_source=addon&utm_medium=panel&utm_campaign=container-sync",
       });
       await Logic.setOnboardingStage(7);
       Logic.showPanel(P_CONTAINERS_LIST);
     });
-    Logic.addEnterHandler(document.querySelector("#no-sign-in"), async () => {
+    Utils.addEnterHandler(document.querySelector("#no-sign-in"), async () => {
       await Logic.setOnboardingStage(7);
       Logic.showPanel(P_CONTAINERS_LIST);
     });
@@ -589,17 +533,24 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
 
   // This method is called when the object is registered.
   async initialize() {
-    Logic.addEnterHandler(document.querySelector("#container-add-link"), () => {
-      Logic.showPanel(P_CONTAINER_EDIT, { name: Logic.generateIdentityName() });
-    });
-
-    Logic.addEnterHandler(document.querySelector("#edit-containers-link"), (e) => {
+    Utils.addEnterHandler(document.querySelector("#manage-containers-link"), (e) => {
       if (!e.target.classList.contains("disable-edit-containers")) {
-        Logic.showPanel(P_CONTAINERS_EDIT);
+        Logic.showPanel(MANAGE_CONTAINERS_PICKER);
       }
     });
-
-    Logic.addEnterHandler(document.querySelector("#sort-containers-link"), async () => {
+    Utils.addEnterHandler(document.querySelector("#open-new-tab-in"), () => {
+      Logic.showPanel(OPEN_NEW_CONTAINER_PICKER);
+    });
+    Utils.addEnterHandler(document.querySelector("#reopen-site-in"), () => {
+      Logic.showPanel(REOPEN_IN_CONTAINER_PICKER);
+    });
+    Utils.addEnterHandler(document.querySelector("#always-open-in"), () => {
+      Logic.showPanel(ALWAYS_OPEN_IN_PICKER);
+    });
+    Utils.addEnterHandler(document.querySelector("#info-icon"), () => {
+      browser.runtime.openOptionsPage();
+    });
+    Utils.addEnterHandler(document.querySelector("#sort-containers-link"), async () => {
       try {
         await browser.runtime.sendMessage({
           method: "sortTabs"
@@ -609,9 +560,19 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
         window.close();
       }
     });
-
     document.addEventListener("keydown", (e) => {
-      const selectables = [...document.querySelectorAll("[tabindex='0'], [tabindex='-1']")];
+      function openNewContainerTab(identity) {
+        try {
+          browser.tabs.create({
+            cookieStoreId: identity.cookieStoreId
+          });
+          window.close();
+        } catch (e) {
+          window.close();
+        }
+      }
+      const identities = Logic.identities();
+      const selectables = [...document.querySelectorAll(".open-newtab[tabindex='0']")];
       const element = document.activeElement;
       const index = selectables.indexOf(element) || 0;
       function next() {
@@ -633,14 +594,6 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       case 38:
         previous();
         break;
-      case 13: {
-        const panel = Logic.getCurrentPanelElement();
-        const button = panel.getElementsByTagName("A")[0];
-        if(button) {
-          button.click();
-        }
-        break;
-      }
       case 39:
       {
         const showTabs = element.parentNode.querySelector(".show-tabs");
@@ -660,158 +613,75 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
       default:
         if ((e.keyCode >= 49 && e.keyCode <= 57) &&
             Logic._currentPanel === "containersList") {
-          const element = selectables[e.keyCode - 48];
-          if (element) {
-            element.click();
+          const identity = identities[e.keyCode - 49];
+          if (identity) {
+            openNewContainerTab(identity);
           }
         }
         break;
       }
     });
-
-    // When the popup is open sometimes the tab will still be updating it's state
-    this.tabUpdateHandler = (tabId, changeInfo) => {
-      const propertiesToUpdate = ["title", "favIconUrl"];
-      const hasChanged = Object.keys(changeInfo).find((changeInfoKey) => {
-        if (propertiesToUpdate.includes(changeInfoKey)) {
-          return true;
-        }
-      });
-      if (hasChanged) {
-        this.prepareCurrentTabHeader();
-      }
-    };
-    browser.tabs.onUpdated.addListener(this.tabUpdateHandler);
   },
 
   unregister() {
-    browser.tabs.onUpdated.removeListener(this.tabUpdateHandler);
-  },
 
-  setupAssignmentCheckbox(siteSettings, currentUserContextId) {
-    const assignmentCheckboxElement = document.getElementById("container-page-assigned");
-    let checked = false;
-    if (siteSettings && Number(siteSettings.userContextId) === currentUserContextId) {
-      checked = true;
-    }
-    assignmentCheckboxElement.checked = checked;
-    let disabled = false;
-    if (siteSettings === false) {
-      disabled = true;
-    }
-    assignmentCheckboxElement.disabled = disabled;
-  },
-
-  async prepareCurrentTabHeader() {
-    const currentTab = await Logic.currentTab();
-    const currentTabElement = document.getElementById("current-tab");
-    const assignmentCheckboxElement = document.getElementById("container-page-assigned");
-    const currentTabUserContextId = Logic.userContextId(currentTab.cookieStoreId);
-    assignmentCheckboxElement.addEventListener("change", () => {
-      Logic.setOrRemoveAssignment(currentTab.id, currentTab.url, currentTabUserContextId, !assignmentCheckboxElement.checked);
-    });
-    currentTabElement.hidden = !currentTab;
-    this.setupAssignmentCheckbox(false, currentTabUserContextId);
-    if (currentTab) {
-      const identity = await Logic.identity(currentTab.cookieStoreId);
-      const siteSettings = await Logic.getAssignment(currentTab);
-      this.setupAssignmentCheckbox(siteSettings, currentTabUserContextId);
-      const currentPage = document.getElementById("current-page");
-      currentPage.innerHTML = escaped`<span class="page-title truncate-text">${currentTab.title}</span>`;
-      const favIconElement = Utils.createFavIconElement(currentTab.favIconUrl || "");
-      currentPage.prepend(favIconElement);
-
-      const currentContainer = document.getElementById("current-container");
-      currentContainer.innerText = identity.name;
-
-      currentContainer.setAttribute("data-identity-color", identity.color);
-    }
   },
 
   // This method is called when the panel is shown.
   async prepare() {
     const fragment = document.createDocumentFragment();
 
-    this.prepareCurrentTabHeader();
-
     Logic.identities().forEach(identity => {
-      const hasTabs = (identity.hasHiddenTabs || identity.hasOpenTabs);
       const tr = document.createElement("tr");
-      const context = document.createElement("td");
-      const manage = document.createElement("td");
+      tr.classList.add("menu-item", "hover-highlight");
+      tr.setAttribute("tabindex", "0");
+      const td = document.createElement("td");
+      const openTabs = identity.numberOfOpenTabs || "" ;
 
-      tr.classList.add("container-panel-row");
-
-      context.classList.add("userContext-wrapper", "open-newtab", "clickable", "firstTabindex");
-      manage.classList.add("show-tabs", "pop-button");
-      manage.setAttribute("title", `View ${identity.name} container`);
-      context.setAttribute("tabindex", "0");
-      context.setAttribute("title", `Create ${identity.name} tab`);
-      context.innerHTML = escaped`
-        <div class="userContext-icon-wrapper open-newtab">
+      td.innerHTML = Utils.escaped`          
+        <div class="menu-icon">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
             data-identity-color="${identity.color}">
           </div>
         </div>
-        <div class="container-name truncate-text"></div>`;
-      context.querySelector(".container-name").textContent = identity.name;
-      manage.innerHTML = "<img src='/img/container-arrow.svg' class='show-tabs pop-button-image-small' />";
+        <span class="menu-text">${identity.name}</span>
+        <span class="menu-right-float">
+          <span class="container-count">${openTabs}</span>
+          <span class="menu-arrow">
+            <img alt="Container Info" src="/img/arrow-icon-right.svg" />
+          </span>
+        </span>`;
 
       fragment.appendChild(tr);
 
-      tr.appendChild(context);
+      tr.appendChild(td);
 
-      if (hasTabs) {
-        tr.appendChild(manage);
-      }
-
-      Logic.addEnterHandler(tr, async (e) => {
-        if (e.target.matches(".open-newtab")
-          || e.target.parentNode.matches(".open-newtab")
-          || e.type === "keydown") {
-          try {
-            browser.tabs.create({
-              cookieStoreId: identity.cookieStoreId
-            });
-            window.close();
-          } catch (e) {
-            window.close();
-          }
-        } else if (hasTabs) {
-          Logic.showPanel(P_CONTAINER_INFO, identity);
-        }
+      Utils.addEnterHandler(tr, () => {
+        Logic.showPanel(P_CONTAINER_INFO, identity);
       });
     });
 
-    const list = document.querySelector(".identities-list tbody");
+    const list = document.querySelector("#identities-list");
 
     list.innerHTML = "";
     list.appendChild(fragment);
     /* Not sure why extensions require a focus for the doorhanger,
        however it allows us to have a tabindex before the first selected item
      */
-    const focusHandler = () => {
-      const identityList = list.querySelector("tr .clickable");
-      if (identityList) {
-        // otherwise this throws an error when there are no containers present.
-        identityList.focus();
-        document.removeEventListener("focus", focusHandler);
-      }
-    };
-    document.addEventListener("focus", focusHandler);
-    /* If the user mousedown's first then remove the focus handler */
-    document.addEventListener("mousedown", () => {
-      document.removeEventListener("focus", focusHandler);
-    });
-    /*  If no container is present disable the Edit Containers button */
-    const editContainer = document.querySelector("#edit-containers-link");
-    if (Logic.identities().length === 0) {
-      editContainer.classList.add("disable-edit-containers");
-    } else {
-      editContainer.classList.remove("disable-edit-containers");
-    }
-
+    // const focusHandler = () => {
+    //   const identityList = list.querySelector("tr .clickable");
+    //   if (identityList) {
+    //     // otherwise this throws an error when there are no containers present.
+    //     identityList.focus();
+    //     document.removeEventListener("focus", focusHandler);
+    //   }
+    // };
+    // document.addEventListener("focus", focusHandler);
+    // /* If the user mousedown's first then remove the focus handler */
+    // document.addEventListener("mousedown", () => {
+    //   document.removeEventListener("focus", focusHandler);
+    // });
     return Promise.resolve();
   },
 });
@@ -825,15 +695,101 @@ Logic.registerPanel(P_CONTAINER_INFO, {
   // This method is called when the object is registered.
   async initialize() {
     const closeContEl = document.querySelector("#close-container-info-panel");
-    closeContEl.setAttribute("tabindex", "0");
-    closeContEl.classList.add("firstTabindex");
-    Logic.addEnterHandler(closeContEl, () => {
+    Utils.addEnterHandler(closeContEl, () => {
       Logic.showPreviousPanel();
     });
-    const hideContEl = document.querySelector("#container-info-hideorshow");
-    hideContEl.setAttribute("tabindex", "0");
-    Logic.addEnterHandler(hideContEl, async () => {
-      const identity = Logic.currentIdentity();
+
+    // Check if the user has incompatible add-ons installed
+    // Note: this is not implemented in messageHandler.js
+    let incompatible = false;
+    try {
+      incompatible = await browser.runtime.sendMessage({
+        method: "checkIncompatibleAddons"
+      });
+    } catch (e) {
+      throw new Error("Could not check for incompatible add-ons.");
+    }
+
+    const moveTabsEl = document.querySelector("#move-to-new-window");
+    const numTabs = await Logic.numTabs();
+    if (incompatible) {
+      Logic._disableMenuItem("Moving container tabs is incompatible with Pulse, PageShot, and SnoozeTabs.");
+      return;
+    } else if (numTabs === 1) {
+      Logic._disableMenuItem("Cannot move a tab from a single-tab window.");
+      return;
+    }
+
+    Utils.addEnterHandler(moveTabsEl, async () => {
+      await browser.runtime.sendMessage({
+        method: "moveTabsToWindow",
+        windowId: browser.windows.WINDOW_ID_CURRENT,
+        cookieStoreId: Logic.currentIdentity().cookieStoreId,
+      });
+      window.close();
+    });
+
+
+  },
+
+  // This method is called when the panel is shown.
+  async prepare() {
+    const identity = Logic.currentIdentity();
+
+    const newTab = document.querySelector("#open-new-tab-in-info");
+    Utils.addEnterHandler(newTab, () => {
+      try {
+        browser.tabs.create({
+          cookieStoreId: identity.cookieStoreId
+        });
+        window.close();
+      } catch (e) {
+        window.close();
+      }
+    });
+    // Populating the panel: name and icon
+    document.getElementById("container-info-title").textContent = identity.name;
+    
+    const alwaysOpen = document.querySelector("#always-open-in-info-panel");    
+    Utils.addEnterHandler(alwaysOpen, async () => {
+      Utils.alwaysOpenInContainer(identity);
+      window.close();
+    });
+    // Show or not the has-tabs section.
+    for (let trHasTabs of document.getElementsByClassName("container-info-has-tabs")) { // eslint-disable-line prefer-const
+      trHasTabs.style.display = !identity.hasHiddenTabs && !identity.hasOpenTabs ? "none" : "";
+    }
+
+    if (identity.numberOfOpenTabs === 0) {
+      Logic._disableMenuItem("No tabs available for this container");
+    } else {
+      Logic._enableMenuItems();
+    }
+
+    this.intializeShowHide(identity);
+
+    // Let's retrieve the list of tabs.
+    const tabs = await browser.runtime.sendMessage({
+      method: "getTabs",
+      windowId: browser.windows.WINDOW_ID_CURRENT,
+      cookieStoreId: Logic.currentIdentity().cookieStoreId
+    });
+    const manageContainer = document.querySelector("#manage-container-link");
+    Utils.addEnterHandler(manageContainer, async () => {
+      Logic.showPanel(P_CONTAINER_EDIT, identity);
+    });
+    return this.buildOpenTabTable(tabs);
+  },
+
+  intializeShowHide(identity) {
+    const hideContEl = document.querySelector("#hideorshow-container");
+    if (identity.numberOfOpenTabs === 0 && !identity.hasHiddenTabs) {
+      return Logic._disableMenuItem("No tabs available for this container",  hideContEl);
+    } else {
+      Logic._enableMenuItems(hideContEl);
+    }
+
+    Utils.addEnterHandler(hideContEl, async () => {
       try {
         browser.runtime.sendMessage({
           method: identity.hasHiddenTabs ? "showTabs" : "hideTabs",
@@ -846,114 +802,48 @@ Logic.registerPanel(P_CONTAINER_INFO, {
       }
     });
 
-    // Check if the user has incompatible add-ons installed
-    let incompatible = false;
-    try {
-      incompatible = await browser.runtime.sendMessage({
-        method: "checkIncompatibleAddons"
-      });
-    } catch (e) {
-      throw new Error("Could not check for incompatible add-ons.");
-    }
-    const moveTabsEl = document.querySelector("#container-info-movetabs");
-    moveTabsEl.setAttribute("tabindex","0");
-    const numTabs = await Logic.numTabs();
-    if (incompatible) {
-      Logic._disableMoveTabs("Moving container tabs is incompatible with Pulse, PageShot, and SnoozeTabs.");
-      return;
-    } else if (numTabs === 1) {
-      Logic._disableMoveTabs("Cannot move a tab from a single-tab window.");
-      return;
-    }
-    Logic.addEnterHandler(moveTabsEl, async () => {
-      await browser.runtime.sendMessage({
-        method: "moveTabsToWindow",
-        windowId: browser.windows.WINDOW_ID_CURRENT,
-        cookieStoreId: Logic.currentIdentity().cookieStoreId,
-      });
-      window.close();
-    });
-  },
-
-  // This method is called when the panel is shown.
-  async prepare() {
-    const identity = Logic.currentIdentity();
-
-    // Populating the panel: name and icon
-    document.getElementById("container-info-name").textContent = identity.name;
-
-    const icon = document.getElementById("container-info-icon");
-    icon.setAttribute("data-identity-icon", identity.icon);
-    icon.setAttribute("data-identity-color", identity.color);
-
-    // Show or not the has-tabs section.
-    for (let trHasTabs of document.getElementsByClassName("container-info-has-tabs")) { // eslint-disable-line prefer-const
-      trHasTabs.style.display = !identity.hasHiddenTabs && !identity.hasOpenTabs ? "none" : "";
-    }
-
     const hideShowIcon = document.getElementById("container-info-hideorshow-icon");
     hideShowIcon.src = identity.hasHiddenTabs ? CONTAINER_UNHIDE_SRC : CONTAINER_HIDE_SRC;
 
     const hideShowLabel = document.getElementById("container-info-hideorshow-label");
     hideShowLabel.textContent = identity.hasHiddenTabs ? "Show this container" : "Hide this container";
+    return;
+  },
 
+  buildOpenTabTable(tabs) {
     // Let's remove all the previous tabs.
     const table = document.getElementById("container-info-table");
     while (table.firstChild) {
       table.firstChild.remove();
     }
 
-    // Let's retrieve the list of tabs.
-    const tabs = await browser.runtime.sendMessage({
-      method: "getTabs",
-      windowId: browser.windows.WINDOW_ID_CURRENT,
-      cookieStoreId: Logic.currentIdentity().cookieStoreId
-    });
-    return this.buildInfoTable(tabs);
-  },
-
-  buildInfoTable(tabs) {
     // For each one, let's create a new line.
     const fragment = document.createDocumentFragment();
     for (let tab of tabs) { // eslint-disable-line prefer-const
       const tr = document.createElement("tr");
       fragment.appendChild(tr);
-      tr.classList.add("container-info-tab-row");
-      tr.innerHTML = escaped`
-        <td></td>
-        <td class="container-info-tab-title truncate-text" title="${tab.url}" ><div class="container-tab-title">${tab.title}</div></td>`;
-      tr.querySelector("td").appendChild(Utils.createFavIconElement(tab.favIconUrl));
+      tr.classList.add("menu-item", "hover-highlight");
       tr.setAttribute("tabindex", "0");
-      document.getElementById("container-info-table").appendChild(fragment);
+      tr.innerHTML = Utils.escaped`
+        <td>
+          <div class="favicon"></div>
+          <span title="${tab.url}" class="menu-text truncate-text">${tab.title}</span>
+          <img id="${tab.id}" class="trash-button" src="/img/container-close-tab.svg" />
+        </td>`;
+      tr.querySelector(".favicon").appendChild(Utils.createFavIconElement(tab.favIconUrl));
+      tr.setAttribute("tabindex", "0");
+      table.appendChild(fragment);
 
       // On click, we activate this tab. But only if this tab is active.
       if (!tab.hiddenState) {
-        const closeImage = document.createElement("img");
-        closeImage.src = "/img/container-close-tab.svg";
-        closeImage.className = "container-close-tab";
-        closeImage.title = "Close tab";
-        closeImage.id = tab.id;
-        const tabTitle = tr.querySelector(".container-info-tab-title");
-        tabTitle.appendChild(closeImage);
-
-        // On hover, we add truncate-text class to add close-tab-image after tab title truncates
-        const tabTitleHoverEvent = () => {
-          tabTitle.classList.toggle("truncate-text");
-          tr.querySelector(".container-tab-title").classList.toggle("truncate-text");
-        };
-
-        tr.addEventListener("mouseover", tabTitleHoverEvent);
-        tr.addEventListener("mouseout", tabTitleHoverEvent);
-
-        tr.classList.add("clickable");
-        Logic.addEnterHandler(tr, async () => {
+        Utils.addEnterHandler(tr, async () => {
           await browser.tabs.update(tab.id, { active: true });
           window.close();
         });
 
-        const closeTab = document.getElementById(tab.id);
+        const closeTab = document.querySelector(".trash-button");
         if (closeTab) {
-          Logic.addEnterHandler(closeTab, async (e) => {
+          Utils.addEnterHandler(closeTab, async (e) => {
             await browser.tabs.remove(Number(e.target.id));
             window.close();
           });
@@ -963,67 +853,353 @@ Logic.registerPanel(P_CONTAINER_INFO, {
   },
 });
 
-// P_CONTAINERS_EDIT: Makes the list editable.
+// OPEN_NEW_CONTAINER_PICKER: Opens a new container tab.
 // ----------------------------------------------------------------------------
 
-Logic.registerPanel(P_CONTAINERS_EDIT, {
-  panelSelector: "#edit-containers-panel",
+Logic.registerPanel(OPEN_NEW_CONTAINER_PICKER, {
+  panelSelector: "#container-picker-panel",
 
   // This method is called when the object is registered.
   initialize() {
-    Logic.addEnterHandler(document.querySelector("#exit-edit-mode-link"), () => {
-      Logic.showPanel(P_CONTAINERS_LIST);
-    });
   },
 
   // This method is called when the panel is shown.
   prepare() {
+    Logic.listenToPickerBackButton();
+    document.getElementById("picker-title").textContent = "Open a New Tab in";
     const fragment = document.createDocumentFragment();
+    const pickedFunction = function (identity) {
+      try {
+        browser.tabs.create({
+          cookieStoreId: identity.cookieStoreId
+        });
+        window.close();
+      } catch (e) {
+        window.close();
+      }
+    };
+
+    document.getElementById("new-container-div").innerHTML = "";
+
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
-      fragment.appendChild(tr);
-      tr.classList.add("container-panel-row");
-      tr.innerHTML = escaped`
-        <td class="userContext-wrapper">
-          <div class="userContext-icon-wrapper">
-            <div class="usercontext-icon"
-              data-identity-icon="${identity.icon}"
-              data-identity-color="${identity.color}">
-            </div>
+      tr.classList.add("menu-item", "hover-highlight");
+      tr.setAttribute("tabindex", "0");
+      const td = document.createElement("td");
+
+      td.innerHTML = Utils.escaped`          
+        <div class="menu-icon">
+          <div class="usercontext-icon"
+            data-identity-icon="${identity.icon}"
+            data-identity-color="${identity.color}">
           </div>
-          <div class="container-name truncate-text"></div>
-        </td>
-        <td class="edit-container pop-button edit-container-icon">
-          <img
-            src="/img/container-edit.svg"
-            class="pop-button-image" />
-        </td>
-        <td class="remove-container pop-button delete-container-icon">
-          <img
-            class="pop-button-image"
-            src="/img/container-delete.svg"
-          />
-        </td>`;
-      tr.querySelector(".container-name").textContent = identity.name;
-      tr.querySelector(".edit-container").setAttribute("title", `Edit ${identity.name} container`);
-      tr.querySelector(".remove-container").setAttribute("title", `Remove ${identity.name} container`);
+        </div>
+        <span class="menu-text">${identity.name}</span>`;
 
+      fragment.appendChild(tr);
 
-      Logic.addEnterHandler(tr, e => {
-        if (e.target.matches(".edit-container-icon") || e.target.parentNode.matches(".edit-container-icon")) {
-          Logic.showPanel(P_CONTAINER_EDIT, identity);
-        } else if (e.target.matches(".delete-container-icon") || e.target.parentNode.matches(".delete-container-icon")) {
-          Logic.showPanel(P_CONTAINER_DELETE, identity);
-        }
+      tr.appendChild(td);
+
+      Utils.addEnterHandler(tr, () => {
+        pickedFunction(identity);
       });
     });
 
-    const list = document.querySelector("#edit-identities-list");
+    const list = document.querySelector("#picker-identities-list");
 
     list.innerHTML = "";
     list.appendChild(fragment);
 
     return Promise.resolve(null);
+  }
+});
+
+// MANAGE_CONTAINERS_PICKER: Makes the list editable.
+// ----------------------------------------------------------------------------
+
+Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
+  panelSelector: "#container-picker-panel",
+
+  // This method is called when the object is registered.
+  initialize() {
+  },
+
+  // This method is called when the panel is shown.
+  prepare() {
+    Logic.listenToPickerBackButton();
+    const closeContEl = document.querySelector("#close-container-picker-panel");
+    if (!this._listenerSet) {
+      Utils.addEnterHandler(closeContEl, () => {
+        Logic.showPreviousPanel();
+      });
+      this._listenerSet = true;
+    }
+    document.getElementById("picker-title").textContent = "Manage Containers";
+    const fragment = document.createDocumentFragment();
+    const pickedFunction = function (identity) {
+      Logic.showPanel(P_CONTAINER_EDIT, identity);
+    };
+
+    document.getElementById("new-container-div").innerHTML = Utils.escaped`
+      <table class="menu">
+        <tr class="menu-item hover-highlight" id="new-container" tabindex="0">
+          <td>
+            <div class="menu-icon"><img alt="New Container" src="/img/new-16.svg" />
+            </div>
+            <span class="menu-text">New Container</span>
+          </td>
+        </tr>
+      </table>
+      <hr>
+    `;
+
+    Utils.addEnterHandler(document.querySelector("#new-container"), () => {
+      Logic.showPanel(P_CONTAINER_EDIT, { name: Logic.generateIdentityName() });
+    });
+
+    Logic.identities().forEach(identity => {
+      const tr = document.createElement("tr");
+      tr.classList.add("menu-item", "hover-highlight");
+      tr.setAttribute("tabindex", "0");
+      const td = document.createElement("td");
+
+      td.innerHTML = Utils.escaped`          
+        <div class="menu-icon hover-highlight">
+          <div class="usercontext-icon"
+            data-identity-icon="${identity.icon}"
+            data-identity-color="${identity.color}">
+          </div>
+        </div>
+        <span class="menu-text">${identity.name}</span>`;
+
+      fragment.appendChild(tr);
+
+      tr.appendChild(td);
+
+      Utils.addEnterHandler(tr, () => {
+        pickedFunction(identity);
+      });
+    });
+
+    const list = document.querySelector("#picker-identities-list");
+
+    list.innerHTML = "";
+    list.appendChild(fragment);
+
+    return Promise.resolve(null);
+  }
+});
+
+// REOPEN_IN_CONTAINER_PICKER: Makes the list editable.
+// ----------------------------------------------------------------------------
+
+Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
+  panelSelector: "#container-picker-panel",
+
+  // This method is called when the object is registered.
+  initialize() {
+  },
+
+  // This method is called when the panel is shown.
+  async prepare() {
+    Logic.listenToPickerBackButton();
+    document.getElementById("picker-title").textContent = "Reopen This Site in";
+    const fragment = document.createDocumentFragment();
+    const currentTab = await Utils.currentTab();
+    const pickedFunction = function (identity) {
+      const newUserContextId = Utils.userContextId(identity.cookieStoreId);
+      Utils.reloadInContainer(
+        currentTab.url, 
+        false, 
+        newUserContextId,
+        currentTab.index + 1, 
+        currentTab.active
+      );
+      window.close();
+    };
+
+    document.getElementById("new-container-div").innerHTML = "";
+
+    if (currentTab.cookieStoreId !== "firefox-default") {
+      const tr = document.createElement("tr");
+      tr.classList.add("menu-item", "hover-highlight");
+      const td = document.createElement("td");
+
+      td.innerHTML = Utils.escaped`          
+        <div class="menu-icon hover-highlight">
+          <div class="mac-icon">
+          </div>
+        </div>
+        <span class="menu-text">Default Container</span>`;
+
+      fragment.appendChild(tr);
+
+      tr.appendChild(td);
+
+      Utils.addEnterHandler(tr, () => {
+        Utils.reloadInContainer(
+          currentTab.url, 
+          false, 
+          0,
+          currentTab.index + 1, 
+          currentTab.active
+        );
+        window.close();
+      });
+    }
+
+    Logic.identities().forEach(identity => {
+      if (currentTab.cookieStoreId !== identity.cookieStoreId) {
+        const tr = document.createElement("tr");
+        tr.classList.add("menu-item", "hover-highlight");
+        tr.setAttribute("tabindex", "0");
+        const td = document.createElement("td");
+
+        td.innerHTML = Utils.escaped`          
+        <div class="menu-icon hover-highlight">
+          <div class="usercontext-icon"
+            data-identity-icon="${identity.icon}"
+            data-identity-color="${identity.color}">
+          </div>
+        </div>
+        <span class="menu-text">${identity.name}</span>`;
+
+        fragment.appendChild(tr);
+
+        tr.appendChild(td);
+
+        Utils.addEnterHandler(tr, () => {
+          pickedFunction(identity);
+        });
+      }
+    });
+
+    const list = document.querySelector("#picker-identities-list");
+
+    list.innerHTML = "";
+    list.appendChild(fragment);
+
+    return Promise.resolve(null);
+  }
+});
+
+// ALWAYS_OPEN_IN_PICKER: Makes the list editable.
+// ----------------------------------------------------------------------------
+
+Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
+  panelSelector: "#container-picker-panel",
+
+  // This method is called when the object is registered.
+  initialize() {
+  },
+
+  // This method is called when the panel is shown.
+  prepare() {
+    Logic.listenToPickerBackButton();
+    document.getElementById("picker-title").textContent = "Reopen This Site in";
+    const fragment = document.createDocumentFragment();
+
+    document.getElementById("new-container-div").innerHTML = "";
+
+    Logic.identities().forEach(identity => {
+      const tr = document.createElement("tr");
+      tr.classList.add("menu-item", "hover-highlight");
+      tr.setAttribute("tabindex", "0");
+      const td = document.createElement("td");
+
+      td.innerHTML = Utils.escaped`          
+        <div class="menu-icon hover-highlight">
+          <div class="usercontext-icon"
+            data-identity-icon="${identity.icon}"
+            data-identity-color="${identity.color}">
+          </div>
+        </div>
+        <span class="menu-text">${identity.name}</span>`;
+
+      fragment.appendChild(tr);
+
+      tr.appendChild(td);
+
+      Utils.addEnterHandler(tr, () => {
+        Utils.alwaysOpenInContainer(identity);
+        window.close();
+      });
+    });
+
+    const list = document.querySelector("#picker-identities-list");
+
+    list.innerHTML = "";
+    list.appendChild(fragment);
+
+    return Promise.resolve(null);
+  }
+});
+
+// P_CONTAINER_ASSIGNMENTS: Shows Site Assignments and allows editing.
+// ----------------------------------------------------------------------------
+
+Logic.registerPanel(P_CONTAINER_ASSIGNMENTS, {
+  panelSelector: "#edit-container-assignments",
+
+  // This method is called when the object is registered.
+  initialize() {
+    const closeContEl = document.querySelector("#close-container-assignment-panel");
+    Utils.addEnterHandler(closeContEl, () => {
+      Logic.showPreviousPanel();
+    });
+  },
+
+  // This method is called when the panel is shown.
+  async prepare() {
+    const identity = Logic.currentIdentity();
+
+    // Populating the panel: name and icon
+    document.getElementById("edit-assignments-title").textContent = identity.name;
+
+    const userContextId = Logic.currentUserContextId();
+    const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
+    this.showAssignedContainers(assignments);
+
+    return Promise.resolve(null);
+  },
+
+  showAssignedContainers(assignments) {
+    const assignmentPanel = document.getElementById("edit-sites-assigned");
+    const assignmentKeys = Object.keys(assignments);
+    assignmentPanel.hidden = !(assignmentKeys.length > 0);
+    if (assignments) {
+      const tableElement = document.querySelector("#edit-sites-assigned");
+      /* Remove previous assignment list,
+         after removing one we rerender the list */
+      while (tableElement.firstChild) {
+        tableElement.firstChild.remove();
+      }
+      assignmentKeys.forEach((siteKey) => {
+        const site = assignments[siteKey];
+        const trElement = document.createElement("tr");
+        /* As we don't have the full or correct path the best we can assume is the path is HTTPS and then replace with a broken icon later if it doesn't load.
+           This is pending a better solution for favicons from web extensions */
+        const assumedUrl = `https://${site.hostname}/favicon.ico`;
+        trElement.innerHTML = Utils.escaped`
+        <td>
+          <div class="favicon"></div>
+          <span title="${site.hostname}" class="menu-text">${site.hostname}</span>
+          <img class="trash-button delete-assignment" src="/img/container-delete.svg" />
+        </td>`;
+        trElement.getElementsByClassName("favicon")[0].appendChild(Utils.createFavIconElement(assumedUrl));
+        const deleteButton = trElement.querySelector(".trash-button");
+        Utils.addEnterHandler(deleteButton, async () => {
+          const userContextId = Logic.currentUserContextId();
+          // Lets show the message to the current tab
+          // const currentTab = await Utils.currentTab();
+          Utils.setOrRemoveAssignment(false, assumedUrl, userContextId, true);
+          delete assignments[siteKey];
+          this.showAssignedContainers(assignments);
+        });
+        trElement.classList.add("menu-item", "hover-highlight");
+        tableElement.appendChild(trElement);
+      });
+    }
   },
 });
 
@@ -1036,8 +1212,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
   // This method is called when the object is registered.
   initialize() {
     this.initializeRadioButtons();
-
-    Logic.addEnterHandler(document.querySelector("#edit-container-panel-back-arrow"), () => {
+    Utils.addEnterHandler(document.querySelector("#close-container-edit-panel"), () => {
       const formValues = new FormData(this._editForm);
       if (formValues.get("container-id") !== NEW_CONTAINER_ID) {
         this._submitForm();
@@ -1046,23 +1221,17 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       }
     });
 
-    Logic.addEnterHandler(document.querySelector("#edit-container-cancel-link"), () => {
-      Logic.showPreviousPanel();
-    });
-
     this._editForm = document.getElementById("edit-container-panel-form");
-    const editLink = document.querySelector("#edit-container-ok-link");
-    Logic.addEnterHandler(editLink, () => {
-      this._submitForm();
-    });
-    editLink.addEventListener("submit", () => {
-      this._submitForm();
-    });
     this._editForm.addEventListener("submit", () => {
       this._submitForm();
     });
+    Utils.addEnterHandler(document.querySelector("#create-container-cancel-link"), () => {
+      Logic.showPreviousPanel();
+    });
 
-
+    Utils.addEnterHandler(document.querySelector("#create-container-ok-link"), () => {
+      this._submitForm();
+    });
   },
 
   async _submitForm() {
@@ -1086,54 +1255,9 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     }
   },
 
-  showAssignedContainers(assignments) {
-    const assignmentPanel = document.getElementById("edit-sites-assigned");
-    const assignmentKeys = Object.keys(assignments);
-    assignmentPanel.hidden = !(assignmentKeys.length > 0);
-    if (assignments) {
-      const tableElement = assignmentPanel.querySelector(".assigned-sites-list");
-      /* Remove previous assignment list,
-         after removing one we rerender the list */
-      while (tableElement.firstChild) {
-        tableElement.firstChild.remove();
-      }
-
-      assignmentKeys.forEach((siteKey) => {
-        const site = assignments[siteKey];
-        const trElement = document.createElement("div");
-        /* As we don't have the full or correct path the best we can assume is the path is HTTPS and then replace with a broken icon later if it doesn't load.
-           This is pending a better solution for favicons from web extensions */
-        const assumedUrl = `https://${site.hostname}/favicon.ico`;
-        trElement.innerHTML = escaped`
-        <div class="favicon"></div>
-        <div title="${site.hostname}" class="truncate-text hostname">
-          ${site.hostname}
-        </div>
-        <img
-          class="pop-button-image delete-assignment"
-          src="/img/container-delete.svg"
-        />`;
-        trElement.getElementsByClassName("favicon")[0].appendChild(Utils.createFavIconElement(assumedUrl));
-        const deleteButton = trElement.querySelector(".delete-assignment");
-        const that = this;
-        Logic.addEnterHandler(deleteButton, async () => {
-          const userContextId = Logic.currentUserContextId();
-          // Lets show the message to the current tab
-          // TODO remove then when firefox supports arrow fn async
-          const currentTab = await Logic.currentTab();
-          Logic.setOrRemoveAssignment(currentTab.id, assumedUrl, userContextId, true);
-          delete assignments[siteKey];
-          that.showAssignedContainers(assignments);
-        });
-        trElement.classList.add("container-info-tab-row", "clickable");
-        tableElement.appendChild(trElement);
-      });
-    }
-  },
-
   initializeRadioButtons() {
     const colorRadioTemplate = (containerColor) => {
-      return escaped`<input type="radio" value="${containerColor}" name="container-color" id="edit-container-panel-choose-color-${containerColor}" />
+      return Utils.escaped`<input type="radio" value="${containerColor}" name="container-color" id="edit-container-panel-choose-color-${containerColor}" />
      <label for="edit-container-panel-choose-color-${containerColor}" class="usercontext-icon choose-color-icon" data-identity-icon="circle" data-identity-color="${containerColor}">`;
     };
     const colors = ["blue", "turquoise", "green", "yellow", "orange", "red", "pink", "purple"];
@@ -1147,7 +1271,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     });
 
     const iconRadioTemplate = (containerIcon) => {
-      return escaped`<input type="radio" value="${containerIcon}" name="container-icon" id="edit-container-panel-choose-icon-${containerIcon}" />
+      return Utils.escaped`<input type="radio" value="${containerIcon}" name="container-icon" id="edit-container-panel-choose-icon-${containerIcon}" />
      <label for="edit-container-panel-choose-icon-${containerIcon}" class="usercontext-icon choose-color-icon" data-identity-color="grey" data-identity-icon="${containerIcon}">`;
     };
     const icons = ["fingerprint", "briefcase", "dollar", "cart", "vacation", "gift", "food", "fruit", "pet", "tree", "chill", "circle"];
@@ -1165,10 +1289,17 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
   async prepare() {
     const identity = Logic.currentIdentity();
 
+    // Populating the panel: name and icon
+    document.getElementById("container-edit-title").textContent = identity.name;
+
     const userContextId = Logic.currentUserContextId();
-    const assignments = await Logic.getAssignmentObjectByContainer(userContextId);
-    this.showAssignedContainers(assignments);
     document.querySelector("#edit-container-panel .panel-footer").hidden = !!userContextId;
+    document.querySelector("#edit-container-panel .delete-container").hidden = !userContextId;
+    document.querySelector("#edit-container-options").hidden = !userContextId;
+
+    Utils.addEnterHandler(document.querySelector("#manage-assigned-sites-list"), () => {
+      Logic.showPanel(P_CONTAINER_ASSIGNMENTS, identity);
+    });
 
     document.querySelector("#edit-container-panel-name-input").value = identity.name || "";
     document.querySelector("#edit-container-panel-usercontext-input").value = userContextId || NEW_CONTAINER_ID;
@@ -1177,6 +1308,14 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       containerName.select();
       containerName.focus();
     });
+    const siteIsolation = document.querySelector("#site-isolation");
+    siteIsolation.checked = !!identity.isIsolated;
+    siteIsolation.addEventListener( "change", function() {
+      browser.runtime.sendMessage({ 
+        method: "addRemoveSiteIsolation",
+        cookieStoreId: identity.cookieStoreId
+      });
+    });
     [...document.querySelectorAll("[name='container-color']")].forEach(colorInput => {
       colorInput.checked = colorInput.value === identity.color;
     });
@@ -1184,6 +1323,10 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       iconInput.checked = iconInput.value === identity.icon;
     });
 
+    const deleteButton = document.getElementById("delete-container-button");
+    Utils.addEnterHandler(deleteButton, () => {
+      Logic.showPanel(P_CONTAINER_DELETE, identity);
+    });
     return Promise.resolve(null);
   },
 
@@ -1197,20 +1340,22 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
 
   // This method is called when the object is registered.
   initialize() {
-    Logic.addEnterHandler(document.querySelector("#delete-container-cancel-link"), () => {
+    Utils.addEnterHandler(document.querySelector("#delete-container-cancel-link"), () => {
       Logic.showPreviousPanel();
     });
-
-    Logic.addEnterHandler(document.querySelector("#delete-container-ok-link"), async () => {
+    Utils.addEnterHandler(document.querySelector("#close-container-delete-panel"), () => {
+      Logic.showPreviousPanel();
+    });
+    Utils.addEnterHandler(document.querySelector("#delete-container-ok-link"), async () => {
       /* This promise wont resolve if the last tab was removed from the window.
           as the message async callback stops listening, this isn't an issue for us however it might be in future
           if you want to do anything post delete do it in the background script.
           Browser console currently warns about not listening also.
       */
       try {
-        await Logic.removeIdentity(Logic.userContextId(Logic.currentIdentity().cookieStoreId));
+        await Logic.removeIdentity(Utils.userContextId(Logic.currentIdentity().cookieStoreId));
         await Logic.refreshIdentities();
-        Logic.showPreviousPanel();
+        Logic.showPanel(P_CONTAINERS_LIST);
       } catch (e) {
         Logic.showPanel(P_CONTAINERS_LIST);
       }
@@ -1222,7 +1367,7 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
     const identity = Logic.currentIdentity();
 
     // Populating the panel: name, icon, and warning message
-    document.getElementById("delete-container-name").textContent = identity.name;
+    document.getElementById("container-delete-title").textContent = identity.name;
 
     const totalNumberOfTabs = identity.numberOfHiddenTabs + identity.numberOfOpenTabs;
     let warningMessage = "";
@@ -1231,10 +1376,6 @@ Logic.registerPanel(P_CONTAINER_DELETE, {
       warningMessage = `If you remove this container now, ${totalNumberOfTabs} container ${grammaticalNumTabs} will be closed.`;
     }
     document.getElementById("delete-container-tab-warning").textContent = warningMessage;
-
-    const icon = document.getElementById("delete-container-icon");
-    icon.setAttribute("data-identity-icon", identity.icon);
-    icon.setAttribute("data-identity-color", identity.color);
 
     return Promise.resolve(null);
   },
@@ -1249,7 +1390,7 @@ Logic.registerPanel(P_CONTAINERS_ACHIEVEMENT, {
   // This method is called when the object is registered.
   initialize() {
     // Set done and move to the containers list panel.
-    Logic.addEnterHandler(document.querySelector("#achievement-done-button"), async () => {
+    Utils.addEnterHandler(document.querySelector("#achievement-done-button"), async () => {
       await Logic.setAchievementDone("manyContainersOpened");
       Logic.showPanel(P_CONTAINERS_LIST);
     });

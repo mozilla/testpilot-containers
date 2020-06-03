@@ -1,4 +1,5 @@
 window.identityState = {
+  keyboardShortcut: {},
   storageArea: {
     area: browser.storage.local,
 
@@ -27,7 +28,7 @@ window.identityState = {
         await this.set(cookieStoreId, defaultContainerState);
         return defaultContainerState;
       }
-      throw new Error (`${cookieStoreId} not found`);
+      return false;
     },
 
     set(cookieStoreId, data) {
@@ -40,6 +41,29 @@ window.identityState = {
     async remove(cookieStoreId) {
       const storeKey = this.getContainerStoreKey(cookieStoreId);
       return this.area.remove([storeKey]);
+    },
+
+    async setKeyboardShortcut(shortcutId, cookieStoreId) {
+      identityState.keyboardShortcut[shortcutId] = cookieStoreId;
+      return this.area.set({[shortcutId]: cookieStoreId});
+    },
+
+    async loadKeyboardShortcuts () {
+      const identities = await browser.contextualIdentities.query({});
+      for (let i=0; i < backgroundLogic.NUMBER_OF_KEYBOARD_SHORTCUTS; i++) {
+        const key = "open_container_" + i;
+        const storageObject = await this.area.get(key);
+        if (storageObject[key]){
+          identityState.keyboardShortcut[key] = storageObject[key];
+          continue;
+        }
+        if (identities[i]) {
+          identityState.keyboardShortcut[key] = identities[i].cookieStoreId;
+          continue;
+        }
+        identityState.keyboardShortcut[key] = "none";
+      }
+      return identityState.keyboardShortcut;
     },
 
     /*
@@ -72,7 +96,8 @@ window.identityState = {
           }
         }
       }
-    }
+    },
+
   },
 
   _createTabObject(tab) {
@@ -153,7 +178,13 @@ window.identityState = {
       macAddonUUID: uuidv4()
     };
   },
+
+  init() {
+    this.storageArea.loadKeyboardShortcuts();
+  }
 };
+
+identityState.init();
 
 function uuidv4() {
   // https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript

@@ -4,11 +4,12 @@ describe("#940", function () {
   describe("when other onBeforeRequestHandlers are faster and redirect with the same requestId", function () {
     it("should not open two confirm pages", async function () {
       const webExtension = await initializeWithTab({
-        cookieStoreId: "firefox-container-1",
+        cookieStoreId: "firefox-container-4",
         url: "http://example.com"
       });
 
-      await webExtension.popup.helper.clickElementById("container-page-assigned");
+      await webExtension.popup.helper.clickElementById("always-open-in");
+      await webExtension.popup.helper.clickElementByQuerySelectorAll("#picker-identities-list > .menu-item");
 
       const responses = {};
       await webExtension.background.browser.tabs._create({
@@ -36,10 +37,12 @@ describe("#940", function () {
     beforeEach(async function () {
       
       this.webExt = await initializeWithTab({
-        cookieStoreId: "firefox-container-1",
+        cookieStoreId: "firefox-container-4",
         url: "https://www.youtube.com"
       });
-      await this.webExt.popup.helper.clickElementById("container-page-assigned");
+
+      await this.webExt.popup.helper.clickElementById("always-open-in");
+      await this.webExt.popup.helper.clickElementByQuerySelectorAll("#picker-identities-list > .menu-item");
       
       global.clock = sinon.useFakeTimers();
       this.redirectedRequest = async (options = {}) => {

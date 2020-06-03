@@ -2,7 +2,7 @@
   "name": "testpilot-containers",
   "title": "Multi-Account Containers",
   "description": "Containers helps you keep all the parts of your online life contained in different tabs. Custom labels and color-coded tabs help keep different activities — like online shopping, travel planning, or checking work email — separate.",
-  "version": "6.2.0",
+  "version": "6.2.5",
   "author": "Andrea Marchesini, Luke Crouch and Jonathan Kingston",
   "bugs": {
     "url": "https://github.com/mozilla/multi-account-containers/issues"
@@ -37,6 +37,7 @@
   },
   "scripts": {
     "build": "npm test && cd src && web-ext build --overwrite-dest",
+    "webext": "web-ext run -s src/",
     "lint": "npm-run-all lint:*",
     "lint:addon": "addons-linter src --self-hosted",
     "lint:css": "stylelint src/css/*.css",

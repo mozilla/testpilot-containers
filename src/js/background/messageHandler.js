@@ -6,10 +6,17 @@ const messageHandler = {
 
   init() {
     // Handles messages from webextension code
-    browser.runtime.onMessage.addListener((m) => {
+    browser.runtime.onMessage.addListener(async (m) => {
       let response;
+      let tab;
 
       switch (m.method) {
+      case "getShortcuts":
+        response = identityState.storageArea.loadKeyboardShortcuts();
+        break;
+      case "setShortcut":
+        identityState.storageArea.setKeyboardShortcut(m.shortcut, m.cookieStoreId);
+        break;
       case "resetSync":
         response = sync.resetSync();
         break;
@@ -25,6 +32,9 @@ const messageHandler = {
       case "neverAsk":
         assignManager._neverAsk(m);
         break;
+      case "addRemoveSiteIsolation":
+        response = backgroundLogic.addRemoveSiteIsolation(m.cookieStoreId);
+        break;
       case "getAssignment":
         response = browser.tabs.get(m.tabId).then((tab) => {
           return assignManager._getAssignment(tab);
@@ -36,9 +46,7 @@ const messageHandler = {
       case "setOrRemoveAssignment":
         // m.tabId is used for where to place the in content message
         // m.url is the assignment to be removed/added
-        response = browser.tabs.get(m.tabId).then((tab) => {
-          return assignManager._setOrRemoveAssignment(tab.id, m.url, m.userContextId, m.value);
-        });
+        response = assignManager._setOrRemoveAssignment(m.tabId, m.url, m.userContextId, m.value);
         break;
       case "sortTabs":
         backgroundLogic.sortTabs();
@@ -78,6 +86,31 @@ const messageHandler = {
         break;
       case "exemptContainerAssignment":
         response = assignManager._exemptTab(m);
+        break;
+      case "reloadInContainer":
+        response = assignManager.reloadPageInContainer(
+          m.url, 
+          m.currentUserContextId, 
+          m.newUserContextId, 
+          m.tabIndex, 
+          m.active,
+          true
+        );
+        break;
+      case "assignAndReloadInContainer":
+        tab = await assignManager.reloadPageInContainer(
+          m.url, 
+          m.currentUserContextId, 
+          m.newUserContextId, 
+          m.tabIndex, 
+          m.active,
+          true
+        );
+        // m.tabId is used for where to place the in content message
+        // m.url is the assignment to be removed/added
+        response = browser.tabs.get(tab.id).then((tab) => {
+          return assignManager._setOrRemoveAssignment(tab.id, m.url, m.newUserContextId, m.value);
+        });
         break;
       }
       return response;

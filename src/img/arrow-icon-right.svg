@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<svg width="5px" height="8px" viewBox="0 0 5 8" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 53.2 (72643) - https://sketchapp.com -->
+    <title>Arrow</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <path d="M5.00090934,9.5006316 C4.79840046,9.50099392 4.61567086,9.37916873 4.53812503,9.19209489 C4.4605792,9.00502105 4.5035325,8.78964579 4.64690934,8.6466316 L7.29490934,6.0006316 L4.64690934,3.3546316 C4.45140054,3.1591228 4.45140054,2.8421404 4.64690934,2.6466316 C4.84241814,2.4511228 5.15940054,2.4511228 5.35490934,2.6466316 L8.35490934,5.6466316 C8.44895104,5.74043586 8.50180313,5.86780434 8.50180313,6.0006316 C8.50180313,6.13345886 8.44895104,6.26082734 8.35490934,6.3546316 L5.35490934,9.3546316 C5.26095861,9.44834555 5.13360821,9.5008686 5.00090934,9.5006316 Z" id="path-1"></path>
+    </defs>
+    <g id="Symbols" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" opacity="0.6">
+        <g id="Icons-/-12-/-Arrowhead-Right-12---Thin" transform="translate(-4.000000, -2.000000)">
+            <rect id="bouding-box" x="0" y="0" width="12" height="12"></rect>
+            <mask id="mask-2" fill="white">
+                <use xlink:href="#path-1"></use>
+            </mask>
+            <g id="Shape" fill-rule="nonzero"></g>
+            <g id="Color-/-Photon-/-Primary---Grey-90-80%" mask="url(#mask-2)" fill="#0C0C0D" fill-opacity="0.8" fill-rule="evenodd">
+                <rect id="Rectangle" x="0" y="0" width="12" height="12"></rect>
+            </g>
+        </g>
+    </g>
+</svg>
