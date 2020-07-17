@@ -10,14 +10,15 @@ window.assignManager = {
     exemptedTabs: {},
 
     getSiteStoreKey(pageUrlorUrlKey) {
-      if (pageUrlorUrlKey.includes("siteContainerMap@@_")) return pageUrlorUrlKey;
-      const url = new window.URL(pageUrlorUrlKey);
       const storagePrefix = "siteContainerMap@@_";
+      if (pageUrlorUrlKey.startsWith(storagePrefix)) {
+        return pageUrlorUrlKey;
+      }
+      const url = new window.URL(pageUrlorUrlKey);
       if (url.port === "80" || url.port === "443") {
         return `${storagePrefix}${url.hostname}`;
-      } else {
-        return `${storagePrefix}${url.hostname}${url.port}`;
       }
+      return `${storagePrefix}${url.hostname}${url.port}`;
     },
 
     setExempted(pageUrlorUrlKey, tabId) {
@@ -51,17 +52,34 @@ window.assignManager = {
       return !!syncEnabled;
     },
 
-    getByUrlKey(siteStoreKey) {
-      return new Promise((resolve, reject) => {
-        this.area.get([siteStoreKey]).then((storageResponse) => {
-          if (storageResponse && siteStoreKey in storageResponse) {
-            resolve(storageResponse[siteStoreKey]);
-          }
-          resolve(null);
-        }).catch((e) => {
-          reject(e);
-        });
-      });
+    async getByUrlKey(siteStoreKey) {
+      let res;
+      if (
+        siteStoreKey.startsWith("siteContainerMap@@_") &&
+        browser.storage.managed instanceof Object === true
+      ) {
+        try {
+          res = await browser.storage.managed.get([siteStoreKey]);
+        } catch(e) { }
+      }
+
+      if (!res || Object.keys(res).length === 0) {
+        res = await this.area.get([siteStoreKey]);
+      }
+
+      const storageResponse = (res && siteStoreKey in res) ?
+        res[siteStoreKey]: null;
+
+      if (
+        storageResponse &&
+        !storageResponse.identityMacAddonUUID &&
+        storageResponse.userContextId
+      ) {
+        storageResponse.identityMacAddonUUID =
+          await identityState.lookupMACaddonUUID(storageResponse.userContextId);
+      }
+
+      return storageResponse;
     },
 
     async set(pageUrlorUrlKey, data, exemptedTabIds, backup = true) {
@@ -101,9 +119,17 @@ window.assignManager = {
 
     async getAssignedSites(userContextId = null) {
       const sites = {};
-      const siteConfigs = await this.area.get();
+      const siteConfigs = await Promise.all([
+        this.area.get(),
+        (
+          browser.storage.managed instanceof Object &&
+          browser.storage.managed.get()
+            .catch(() => {})
+        ) || {}
+      ]).then(([a, b]) => ({...a, ...b}))
+
       for(const urlKey of Object.keys(siteConfigs)) {
-        if (urlKey.includes("siteContainerMap@@_")) {
+        if (urlKey.startsWith("siteContainerMap@@_")) {
         // For some reason this is stored as string... lets check 
         // them both as that
           if (!!userContextId && 
@@ -130,7 +156,7 @@ window.assignManager = {
       const identitiesList = await browser.contextualIdentities.query({});
       const macConfigs = await this.area.get();
       for(const configKey of Object.keys(macConfigs)) {
-        if (configKey.includes("siteContainerMap@@_")) {
+        if (configKey.startsWith("siteContainerMap@@_")) {
           const cookieStoreId = 
             "firefox-container-" + macConfigs[configKey].userContextId; 
           const match = identitiesList.find(
