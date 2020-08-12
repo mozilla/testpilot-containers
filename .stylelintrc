@@ -9,10 +9,10 @@
 
   "rules": {
     "declaration-block-no-duplicate-properties": true,
-    "order/declaration-block-properties-alphabetical-order": true,
+    "order/properties-alphabetical-order": true,
     "property-no-unknown": [
       true, {
-        ignoreProperties: 
+        ignoreProperties:
           ["inset-block-end", "inset-block-start"]
     }],
     "property-blacklist": [

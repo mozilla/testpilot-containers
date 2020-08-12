@@ -1,20 +1,25 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <link rel="stylesheet" href="css/options.css">
   </head>
 
   <body>
     <form>
+      <h3>Optional Permissions:</h3>
       <label>
         <input type="checkbox" id="bookmarksPermissions">
         Enable Bookmark Menus
       </label>
-      <p>This setting allows you to open a bookmark or folder of bookmarks in a container.</p>
+      <p><em>This setting allows you to open a bookmark or folder of bookmarks in a container.</em></p>
+      <h3>Firefox Accounts Sync:</h3>
       <label>
         <input type="checkbox" id="syncCheck">
         Enable Sync
       </label>
-      <p>This setting allows you to sync your containers and site assignments across devices.</p>
+      <p><em>This setting allows you to sync your containers and site assignments across devices.</em></p>
+      <h3>Keyboard Shortcuts:</h3>
+      <p><em>Edit which container is opened when using the numbered shortcuts.</em></p>
       <p><label>
         Container to open with Keyboard Shortcut 1
         <select id="open_container_0">
@@ -65,7 +70,11 @@
         <select id="open_container_9">
         </select>
       </label></p>
+      <h3>Onboarding:</h3>
+      <button>Reset Onboarding Panels</button>
+      <p><em>Toggle this to see the onboarding panels again.</em></p>
       <button>Reset Onboarding Panels </button>
+      <h3>Backup:</h3>
       <fieldset>
         <legend>Restore</legend>
         <input id="containers-restore-input" type="file">

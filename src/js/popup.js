@@ -30,6 +30,13 @@ const P_CONTAINER_DELETE = "containerDelete";
 const P_CONTAINERS_ACHIEVEMENT = "containersAchievement";
 const P_CONTAINER_ASSIGNMENTS = "containerAssignments";
 
+function addRemoveSiteIsolation() {
+  const identity = Logic.currentIdentity();
+  browser.runtime.sendMessage({
+    method: "addRemoveSiteIsolation",
+    cookieStoreId: identity.cookieStoreId
+  });
+}
 
 async function getExtensionInfo() {
   const manifestPath = browser.extension.getURL("manifest.json");
@@ -219,12 +226,14 @@ const Logic = {
   },
 
   async showPanel(panel, currentIdentity = null, backwards = false) {
-    // Invalid panel... ?!?
-    if (!(panel in this._panels)) {
-      throw new Error("Something really bad happened. Unknown panel: " + panel);
-    }
     if (!backwards || !this._currentPanel) {
       this._previousPanelPath.push(this._currentPanel);
+    }
+
+    // If invalid panel, reset panels.
+    if (!(panel in this._panels)) {
+      panel = P_CONTAINERS_LIST;
+      this._previousPanelPath = [];
     }
 
     this._currentPanel = panel;
@@ -347,6 +356,77 @@ const Logic = {
         Logic.showPreviousPanel();
       });
       this._listenerSet = true;
+    }
+  },
+
+  shortcutListener(e){
+    function openNewContainerTab(identity) {
+      try {
+        browser.tabs.create({
+          cookieStoreId: identity.cookieStoreId
+        });
+        window.close();
+      } catch (e) {
+        window.close();
+      }
+    }
+    const identities = Logic.identities();
+    if ((e.keyCode >= 49 && e.keyCode <= 57) &&
+            Logic._currentPanel === "containersList") {
+      const identity = identities[e.keyCode - 49];
+      if (identity) {
+        openNewContainerTab(identity);
+      }
+    }
+  },
+
+  keyboardNavListener(e){
+    const panelSelector = Logic.getPanelSelector(Logic._panels[Logic._currentPanel]);
+    const selectables = [...document.querySelectorAll(`${panelSelector} .keyboard-nav[tabindex='0']`)];
+    const element = document.activeElement;
+    const backButton = document.querySelector(`${panelSelector} .keyboard-nav-back`);
+    const index = selectables.indexOf(element) || 0;
+    function next() {
+      const nextElement = selectables[index + 1];
+      if (nextElement) {
+        nextElement.focus();
+      }
+    }
+    function previous() {
+      const previousElement = selectables[index - 1];
+      if (previousElement) {
+        previousElement.focus();
+      }
+    }
+    switch (e.keyCode) {
+    case 40:
+      next();
+      break;
+    case 38:
+      previous();
+      break;
+    case 39:
+    {
+      if(element){
+        element.click();
+      }
+
+      // If one Container is highlighted,
+      if (element.classList.contains("keyboard-right-arrow-override")) {
+        element.querySelector(".menu-right-float").click();
+      }
+
+      break;
+    }
+    case 37:
+    {
+      if(backButton){
+        backButton.click();
+      }
+      break;
+    }
+    default:
+      break;
     }
   }
 };
@@ -560,71 +640,10 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
         window.close();
       }
     });
-    document.addEventListener("keydown", (e) => {
-      function openNewContainerTab(identity) {
-        try {
-          browser.tabs.create({
-            cookieStoreId: identity.cookieStoreId
-          });
-          window.close();
-        } catch (e) {
-          window.close();
-        }
-      }
-      const identities = Logic.identities();
-      const selectables = [...document.querySelectorAll(".open-newtab[tabindex='0']")];
-      const element = document.activeElement;
-      const index = selectables.indexOf(element) || 0;
-      function next() {
-        const nextElement = selectables[index + 1];
-        if (nextElement) {
-          nextElement.focus();
-        }
-      }
-      function previous() {
-        const previousElement = selectables[index - 1];
-        if (previousElement) {
-          previousElement.focus();
-        }
-      }
-      switch (e.keyCode) {
-      case 40:
-        next();
-        break;
-      case 38:
-        previous();
-        break;
-      case 39:
-      {
-        const showTabs = element.parentNode.querySelector(".show-tabs");
-        if(showTabs) {
-          showTabs.click();
-        }
-        break;
-      }
-      case 37:
-      {
-        const hideTabs = document.querySelector(".panel-back-arrow");
-        if(hideTabs) {
-          hideTabs.click();
-        }
-        break;
-      }
-      default:
-        if ((e.keyCode >= 49 && e.keyCode <= 57) &&
-            Logic._currentPanel === "containersList") {
-          const identity = identities[e.keyCode - 49];
-          if (identity) {
-            openNewContainerTab(identity);
-          }
-        }
-        break;
-      }
-    });
+
   },
 
   unregister() {
-
   },
 
   // This method is called when the panel is shown.
@@ -633,19 +652,21 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
 
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav", "keyboard-right-arrow-override");
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
       const openTabs = identity.numberOfOpenTabs || "" ;
 
-      td.innerHTML = Utils.escaped`          
-        <div class="menu-icon">
-          <div class="usercontext-icon"
-            data-identity-icon="${identity.icon}"
-            data-identity-color="${identity.color}">
+      td.innerHTML = Utils.escaped`
+        <div class="menu-item-name">
+          <div class="menu-icon">
+            <div class="usercontext-icon"
+              data-identity-icon="${identity.icon}"
+              data-identity-color="${identity.color}">
+            </div>
           </div>
+          <span class="menu-text">${identity.name}</span>
         </div>
-        <span class="menu-text">${identity.name}</span>
         <span class="menu-right-float">
           <span class="container-count">${openTabs}</span>
           <span class="menu-arrow">
@@ -657,31 +678,46 @@ Logic.registerPanel(P_CONTAINERS_LIST, {
 
       tr.appendChild(td);
 
-      Utils.addEnterHandler(tr, () => {
+      const openInThisContainer = tr.querySelector(".menu-item-name");
+      Utils.addEnterHandler(openInThisContainer, () => {
+        try {
+          browser.tabs.create({
+            cookieStoreId: identity.cookieStoreId
+          });
+          window.close();
+        } catch (e) {
+          window.close();
+        }
+      });
+
+      Utils.addEnterOnlyHandler(tr, () => {
+        try {
+          browser.tabs.create({
+            cookieStoreId: identity.cookieStoreId
+          });
+          window.close();
+        } catch (e) {
+          window.close();
+        }
+      });
+
+      // Select only the ">" from the container list
+      const showPanelButton = tr.querySelector(".menu-right-float");
+
+      Utils.addEnterHandler(showPanelButton, () => {
         Logic.showPanel(P_CONTAINER_INFO, identity);
       });
+
+
     });
 
     const list = document.querySelector("#identities-list");
 
     list.innerHTML = "";
     list.appendChild(fragment);
-    /* Not sure why extensions require a focus for the doorhanger,
-       however it allows us to have a tabindex before the first selected item
-     */
-    // const focusHandler = () => {
-    //   const identityList = list.querySelector("tr .clickable");
-    //   if (identityList) {
-    //     // otherwise this throws an error when there are no containers present.
-    //     identityList.focus();
-    //     document.removeEventListener("focus", focusHandler);
-    //   }
-    // };
-    // document.addEventListener("focus", focusHandler);
-    // /* If the user mousedown's first then remove the focus handler */
-    // document.addEventListener("mousedown", () => {
-    //   document.removeEventListener("focus", focusHandler);
-    // });
+
+    document.addEventListener("keydown", Logic.keyboardNavListener);
+    document.addEventListener("keydown", Logic.shortcutListener);
     return Promise.resolve();
   },
 });
@@ -822,7 +858,7 @@ Logic.registerPanel(P_CONTAINER_INFO, {
     for (let tab of tabs) { // eslint-disable-line prefer-const
       const tr = document.createElement("tr");
       fragment.appendChild(tr);
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       tr.setAttribute("tabindex", "0");
       tr.innerHTML = Utils.escaped`
         <td>
@@ -841,7 +877,7 @@ Logic.registerPanel(P_CONTAINER_INFO, {
           window.close();
         });
 
-        const closeTab = document.querySelector(".trash-button");
+        const closeTab = tr.querySelector(".trash-button");
         if (closeTab) {
           Utils.addEnterHandler(closeTab, async (e) => {
             await browser.tabs.remove(Number(e.target.id));
@@ -883,7 +919,7 @@ Logic.registerPanel(OPEN_NEW_CONTAINER_PICKER, {
 
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
@@ -942,7 +978,7 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
 
     document.getElementById("new-container-div").innerHTML = Utils.escaped`
       <table class="menu">
-        <tr class="menu-item hover-highlight" id="new-container" tabindex="0">
+        <tr class="menu-item hover-highlight keyboard-nav" id="new-container" tabindex="0">
           <td>
             <div class="menu-icon"><img alt="New Container" src="/img/new-16.svg" />
             </div>
@@ -959,7 +995,7 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
 
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
@@ -1022,7 +1058,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
 
     if (currentTab.cookieStoreId !== "firefox-default") {
       const tr = document.createElement("tr");
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       const td = document.createElement("td");
 
       td.innerHTML = Utils.escaped`          
@@ -1051,7 +1087,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
     Logic.identities().forEach(identity => {
       if (currentTab.cookieStoreId !== identity.cookieStoreId) {
         const tr = document.createElement("tr");
-        tr.classList.add("menu-item", "hover-highlight");
+        tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
         tr.setAttribute("tabindex", "0");
         const td = document.createElement("td");
 
@@ -1103,7 +1139,7 @@ Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
 
     Logic.identities().forEach(identity => {
       const tr = document.createElement("tr");
-      tr.classList.add("menu-item", "hover-highlight");
+      tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
@@ -1196,7 +1232,7 @@ Logic.registerPanel(P_CONTAINER_ASSIGNMENTS, {
           delete assignments[siteKey];
           this.showAssignedContainers(assignments);
         });
-        trElement.classList.add("menu-item", "hover-highlight");
+        trElement.classList.add("menu-item", "hover-highlight", "keyboard-nav");
         tableElement.appendChild(trElement);
       });
     }
@@ -1213,6 +1249,9 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
   initialize() {
     this.initializeRadioButtons();
     Utils.addEnterHandler(document.querySelector("#close-container-edit-panel"), () => {
+      // Resets listener from siteIsolation checkbox to keep the update queue to 0.
+      const siteIsolation = document.querySelector("#site-isolation");
+      siteIsolation.removeEventListener("change", addRemoveSiteIsolation, false);
       const formValues = new FormData(this._editForm);
       if (formValues.get("container-id") !== NEW_CONTAINER_ID) {
         this._submitForm();
@@ -1274,7 +1313,7 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       return Utils.escaped`<input type="radio" value="${containerIcon}" name="container-icon" id="edit-container-panel-choose-icon-${containerIcon}" />
      <label for="edit-container-panel-choose-icon-${containerIcon}" class="usercontext-icon choose-color-icon" data-identity-color="grey" data-identity-icon="${containerIcon}">`;
     };
-    const icons = ["fingerprint", "briefcase", "dollar", "cart", "vacation", "gift", "food", "fruit", "pet", "tree", "chill", "circle"];
+    const icons = ["fingerprint", "briefcase", "dollar", "cart", "vacation", "gift", "food", "fruit", "pet", "tree", "chill", "circle", "fence"];
     const iconRadioFieldset = document.getElementById("edit-container-panel-choose-icon");
     icons.forEach((containerIcon) => {
       const templateInstance = document.createElement("div");
@@ -1308,14 +1347,10 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
       containerName.select();
       containerName.focus();
     });
+
     const siteIsolation = document.querySelector("#site-isolation");
     siteIsolation.checked = !!identity.isIsolated;
-    siteIsolation.addEventListener( "change", function() {
-      browser.runtime.sendMessage({ 
-        method: "addRemoveSiteIsolation",
-        cookieStoreId: identity.cookieStoreId
-      });
-    });
+    siteIsolation.addEventListener( "change", addRemoveSiteIsolation, false);
     [...document.querySelectorAll("[name='container-color']")].forEach(colorInput => {
       colorInput.checked = colorInput.value === identity.color;
     });

@@ -75,6 +75,15 @@ const Utils = {
     });
   },
 
+  addEnterOnlyHandler(element, handler) {
+    element.addEventListener("keydown", (e) => {
+      if (e.keyCode === 13) {
+        e.preventDefault();
+        handler(e);
+      }
+    });
+  },  
+
   userContextId(cookieStoreId = "") {
     const userContextId = cookieStoreId.replace("firefox-container-", "");
     return (userContextId !== cookieStoreId) ? Number(userContextId) : false;

@@ -18,9 +18,18 @@ html {
 }
 
 body {
+  color: #000;
   font-family: Roboto, Noto, "San Francisco", Ubuntu, "Segoe UI", "Fira Sans", message-box, Arial, sans-serif;
+  font-size: 13px;
   inline-size: calc(var(--overflow-size) + 299px);
+
+  /* inline-size: 320px; */
+  letter-spacing: -0.1px;
   max-inline-size: calc(var(--overflow-size) + 299px);
+
+  --highlight-blue: #1296f8;
+  --hr-grey: #e3e3e3;
+  --text-grey: #737373;
 }
 
 html,
@@ -46,7 +55,6 @@ body {
   --inline-start-size: 1.66rem; /* 20px */
   --inline-button-size: 5.833rem; /* 70px */
   --icon-size: 1.166rem; /* 14px */
-
   --small-text-size: 0.833rem; /* 10px */
   --small-radius: 3px;
   --icon-button-size: calc(calc(var(--block-line-separation-size) * 2) + 1.66rem); /* 20px */
@@ -108,9 +116,25 @@ table {
 /* Effect borrowed from tabs in Firefox, ensure that the element flexes to the full width */
 .truncate-text {
   inline-size: 100%;
-  mask-image: linear-gradient(to left, transparent, black 1em);
   overflow: hidden;
+  position: relative;
   white-space: nowrap;
+}
+
+.truncate-text::after {
+  background: white;
+  content: " ";
+  height: 100%;
+  inline-size: 50px;
+  inset-inline-end: 0;
+  mask-image: linear-gradient(to right, transparent, white 70%);
+  position: absolute;
+}
+
+.hover-highlight:hover .truncate-text::after,
+.hover-highlight:focus .truncate-text::after {
+  background: var(--highlight-blue);
+  mask-image: linear-gradient(to right, transparent, var(--highlight-blue) 50%);
 }
 
 /* Color and icon helpers */
@@ -363,6 +387,13 @@ manage things like container crud */
   text-decoration: none;
 }
 
+.userContext-wrapper {
+  align-items: center;
+  display: flex;
+  flex: 1 1;
+  transition: background-color 75ms;
+}
+
 .edit-containers-panel .userContext-wrapper {
   max-inline-size: calc(var(--overflow-size) + 203px);
 }
@@ -370,13 +401,6 @@ manage things like container crud */
 .disable-edit-containers {
   opacity: var(--inactive-opacity);
   pointer-events: none;
-}
-
-.userContext-wrapper {
-  align-items: center;
-  display: flex;
-  flex: 1 1;
-  transition: background-color 75ms;
 }
 
 .userContext-icon-wrapper {
@@ -639,18 +663,6 @@ manage things like container crud */
   background: #0f1126;
 }
 
-body {
-  color: #000;
-  font-family: 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  font-size: 13px;
-  inline-size: 320px;
-  letter-spacing: -0.1px;
-
-  --highlight-blue: #1296f8;
-  --hr-grey: #e3e3e3;
-  --text-grey: #737373;
-}
-
 h3.title {
   block-size: 40px;
   color: #000;
@@ -674,6 +686,11 @@ h3.title {
   line-height: 24px;
 }
 
+.menu-item td {
+  display: flex;
+  max-inline-size: 300px;
+}
+
 .disabled-menu-item {
   color: grey;
   cursor: default;
@@ -686,15 +703,20 @@ h3.title {
   color: #fff;
 }
 
+.menu-item-name {
+  display: flex;
+  inline-size: calc(100% - 40px);
+  max-inline-size: 260px;
+}
+
 .menu-text {
   line-height: 24px;
 }
 
 .menu-icon {
   display: block;
-  float: left;
   height: 16px;
-  inline-size: 16px;
+  inline-size: 23px;
   margin-block-end: 4px;
   margin-block-start: 4px;
   margin-inline-end: 8px;
@@ -702,9 +724,13 @@ h3.title {
   text-align: center;
 }
 
+/* Maintain 1:1 square ratio for Favicons of websites added to a specific container */
+#edit-sites-assigned .menu-icon,
+#container-info-table .menu-icon {
+  inline-size: 16px;
+}
+
 .menu-right-float {
-  display: inline-block;
-  float: right;
   height: 24px;
   inline-size: 60px;
   text-align: right;
