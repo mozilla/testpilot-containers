@@ -47,6 +47,21 @@ async function getExtensionInfo() {
   return extensionInfo;
 }
 
+async function applyTheme() {
+  const { currentTheme } = await browser.storage.local.get("currentTheme");
+  const popup = document.getElementsByTagName("html")[0];
+
+  if (typeof currentTheme === "undefined" || currentTheme == "auto") {
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      popup.setAttribute("data-theme", "dark");
+    } else {
+      popup.setAttribute("data-theme", "light");
+    }
+  } else {
+    popup.setAttribute("data-theme", currentTheme);
+  }
+}
+
 // This object controls all the panels, identities and many other things.
 const Logic = {
   _identities: [],
@@ -803,8 +818,8 @@ Logic.registerPanel(P_CONTAINER_INFO, {
     });
     // Populating the panel: name and icon
     document.getElementById("container-info-title").textContent = identity.name;
-    
-    const alwaysOpen = document.querySelector("#always-open-in-info-panel");    
+
+    const alwaysOpen = document.querySelector("#always-open-in-info-panel");
     Utils.addEnterHandler(alwaysOpen, async () => {
       Utils.alwaysOpenInContainer(identity);
       window.close();
@@ -941,7 +956,7 @@ Logic.registerPanel(OPEN_NEW_CONTAINER_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1017,7 +1032,7 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1110,10 +1125,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
     const pickedFunction = function (identity) {
       const newUserContextId = Utils.userContextId(identity.cookieStoreId);
       Utils.reloadInContainer(
-        currentTab.url, 
-        false, 
+        currentTab.url,
+        false,
         newUserContextId,
-        currentTab.index + 1, 
+        currentTab.index + 1,
         currentTab.active
       );
       window.close();
@@ -1126,7 +1141,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
       tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="mac-icon">
           </div>
@@ -1139,10 +1154,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
 
       Utils.addEnterHandler(tr, () => {
         Utils.reloadInContainer(
-          currentTab.url, 
-          false, 
+          currentTab.url,
+          false,
           0,
-          currentTab.index + 1, 
+          currentTab.index + 1,
           currentTab.active
         );
         window.close();
@@ -1156,7 +1171,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
         tr.setAttribute("tabindex", "0");
         const td = document.createElement("td");
 
-        td.innerHTML = Utils.escaped`          
+        td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1208,7 +1223,7 @@ Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1503,6 +1518,7 @@ Logic.registerPanel(P_CONTAINERS_ACHIEVEMENT, {
 });
 
 Logic.init();
+applyTheme();
 
 window.addEventListener("resize", function () {
   //for overflow menu

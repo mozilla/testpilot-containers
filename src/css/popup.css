@@ -1,47 +1,26 @@
-/* General Rules and Resets */
-* {
-  font-size: inherit;
-  margin-block-end: 0;
-  margin-block-start: 0;
-  margin-inline-end: 0;
-  margin-inline-start: 0;
-  padding-block-end: 0;
-  padding-block-start: 0;
-  padding-inline-end: 0;
-  padding-inline-start: 0;
-}
-
-html {
-  background-color: #fefefe;
-  box-sizing: border-box;
-  font-size: 12px;
-}
-
-body {
-  color: #000;
-  font-family: Roboto, Noto, "San Francisco", Ubuntu, "Segoe UI", "Fira Sans", message-box, Arial, sans-serif;
-  font-size: 13px;
-  inline-size: calc(var(--overflow-size) + 299px);
-
-  /* inline-size: 320px; */
-  letter-spacing: -0.1px;
-  max-inline-size: calc(var(--overflow-size) + 299px);
-
-  --highlight-blue: #1296f8;
-  --hr-grey: #e3e3e3;
-  --text-grey: #737373;
-}
-
-html,
-body {
-  block-size: 100%; /* Bugfix: issue 948 */
-}
-
+/* Variables */
 :root {
-  --primary-action-color: #248aeb;
-  --title-text-color: #000;
-  --text-normal-color: #4a4a4a;
-  --text-heading-color: #000;
+  /* Colors */
+  --blue-50: #0a84ff;
+  --blue-60: #0060df;
+  --blue-70: #003eaa;
+  --blue-80: #002275;
+  --grey-10: #f9f9fa;
+  --grey-10-a10: rgba(249, 249, 250, 0.1);
+  --grey-10-a15: rgba(249, 249, 250, 0.15);
+  --grey-10-a20: rgba(249, 249, 250, 0.2);
+  --grey-10-a30: rgba(249, 249, 250, 0.3);
+  --grey-10-a40: rgba(249, 249, 250, 0.4);
+  --grey-10-a50: rgba(249, 249, 250, 0.5);
+  --grey-30: #d7d7db;
+  --grey-50: #737373;
+  --grey-60: #4a4a4f;
+  --grey-85: #202023;
+  --grey-90: #0c0c0d;
+  --grey-90-a10: rgba(12, 12, 13, 0.1);
+  --grey-90-a20: rgba(12, 12, 13, 0.2);
+  --grey-90-a30: rgba(12, 12, 13, 0.3);
+  --white-100: #ffffff;
 
   /* calculated from 12px */
   --font-size-heading: 1.33rem; /* 16px */
@@ -63,6 +42,97 @@ body {
   --overflow-size: 1px;
   --icon-fit: 8;
 }
+
+/* Themes */
+
+/* Common Variables */
+[data-theme="dark"],
+[data-theme="light"] {
+  --button-primary-fg: var(--white-100);
+  --button-primary-bg: var(--blue-60);
+  --button-primary-hover-bg: var(--blue-70);
+  --button-primary-pressed-bg: var(--blue-80);
+}
+
+/* Light Theme */
+[data-theme="light"] {
+  --button-fg: var(--grey-90);
+  --button-bg: var(--grey-90-a10);
+  --button-hover-bg: var(--grey-90-a20);
+  --button-pressed-bg: var(--grey-90-a30);
+  --icon-inverted: 0; /* dark icons on light background */
+  --input-bg: var(--white-100);
+  --input-border: var(--grey-90-a30);
+  --input-fg: var(--grey-90);
+  --link-fg: var(--blue-50);
+  --popup-bg: var(--white-100);
+  --text-heading: var(--grey-90);
+  --text-highlight-bg: var(--grey-90-a10);
+  --text-normal: var(--grey-90);
+  --text-truncate-gradient: var(--white-100);
+  --radio-choice-bg: var(--grey-30);
+  --separator: var(--grey-30);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --button-fg: var(--grey-10);
+  --button-bg: var(--grey-10-a10);
+  --button-hover-bg: var(--grey-10-a15);
+  --button-pressed-bg: var(--grey-10-a20);
+  --icon-inverted: 0.9; /* light icons on dark background */
+  --input-bg: var(--grey-85);
+  --input-border: var(--grey-10-a40);
+  --input-fg: var(--grey-10);
+  --link-fg: var(--blue-50);
+  --popup-bg: var(--grey-60);
+  --popup-border: var(--grey-80);
+  --text-heading: var(--white-100);
+  --text-highlight-bg: var(--grey-10-a10);
+  --text-normal: var(--grey-10);
+  --text-truncate-gradient: var(--grey-60);
+  --radio-choice-bg: var(--grey-50);
+  --separator: var(--grey-10-a10);
+}
+
+/* General Rules and Resets */
+* {
+  font-size: inherit;
+  margin-block-end: 0;
+  margin-block-start: 0;
+  margin-inline-end: 0;
+  margin-inline-start: 0;
+  padding-block-end: 0;
+  padding-block-start: 0;
+  padding-inline-end: 0;
+  padding-inline-start: 0;
+}
+
+
+html {
+  background-color: var(--popup-bg);
+  box-sizing: border-box;
+  box-shadow: 0 0 0 1px var(--popup-border);
+  font-size: 12px;
+}
+
+body {
+  background-color: var(--popup-bg);
+  color: var(--text-normal);
+  font-family: Roboto, Noto, "San Francisco", Ubuntu, "Segoe UI", "Fira Sans", message-box, Arial, sans-serif;
+  font-size: 13px;
+  inline-size: calc(var(--overflow-size) + 299px);
+
+  /* inline-size: 320px; */
+  letter-spacing: -0.1px;
+  max-inline-size: calc(var(--overflow-size) + 299px);
+}
+
+html,
+body {
+  block-size: 100%; /* Bugfix: issue 948 */
+}
+
 
 @media (min-resolution: 1dppx) {
   html {
@@ -122,19 +192,19 @@ table {
 }
 
 .truncate-text::after {
-  background: white;
+  background: var(--text-truncate-gradient);
   content: " ";
   height: 100%;
   inline-size: 50px;
   inset-inline-end: 0;
-  mask-image: linear-gradient(to right, transparent, white 70%);
+  mask-image: linear-gradient(to right, transparent, var(--text-truncate-gradient) 70%);
   position: absolute;
 }
 
 .hover-highlight:hover .truncate-text::after,
 .hover-highlight:focus .truncate-text::after {
-  background: var(--highlight-blue);
-  mask-image: linear-gradient(to right, transparent, var(--highlight-blue) 50%);
+  background: var(--text-highlight-bg);
+  mask-image: linear-gradient(to right, transparent, var(--text-highlight-bg) 50%);
 }
 
 /* Color and icon helpers */
@@ -153,9 +223,14 @@ table {
   --identity-icon-color: #51cd00;
 }
 
-[data-identity-color="grey"] {
+[data-theme="light"] [data-identity-color="grey"] {
   /* Only used for the edit panel */
-  --identity-icon-color: #616161;
+  --identity-icon-color: var(--grey-60);
+}
+
+[data-theme="dark"] [data-identity-color="grey"] {
+  /* Only used for the edit panel */
+  --identity-icon-color: var(--grey-30);
 }
 
 [data-identity-color="yellow"] {
@@ -242,22 +317,22 @@ table {
 
 /* Buttons */
 .button {
-  color: black;
+  color: var(--button-fg);
 }
 
 .button.primary {
-  background-color: #0996f8;
-  color: white;
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-fg);
 }
 
 .button.primary:hover,
 .button.primary:focus {
-  background-color: #0675d3;
+  background-color: var(--button-primary-hover-bg);
 }
 
 .button.secondary:hover,
 .button.secondary:focus {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--button-hover-bg);
 }
 
 /* Panels keep everything together */
@@ -303,7 +378,7 @@ table {
 }
 
 .onboarding-title {
-  color: #43484e;
+  color: var(--text-heading);
   font-size: var(--font-size-heading);
   margin-block-end: 0;
   margin-block-start: 0;
@@ -313,7 +388,7 @@ table {
 }
 
 .onboarding p {
-  color: var(--text-normal-color);
+  color: var(--text-normal);
   font-size: 14px;
   margin-block-end: 16px;
   max-inline-size: 84%;
@@ -321,7 +396,7 @@ table {
 
 .onboarding-button {
   align-items: center;
-  background-color: #0996f8;
+  background-color: var(--button-primary-bg);
   border-radius: 3px;
   color: white;
   display: flex;
@@ -343,9 +418,9 @@ table {
 
 .half-onboarding-button {
   align-items: center;
-  background-color: #0996f8;
+  background-color: var(--button-primary-bg);
   border-radius: 3px;
-  color: white;
+  color: var(--button-primary-fg);
   display: flex;
   flex: 1 0 auto;
   font-size: 14px;
@@ -357,14 +432,33 @@ table {
   transition: background-color 75ms;
 }
 
-.grey-button {
-  background-color: #e3e3e3;
-  color: #000;
+.half-onboarding-button:hover {
+  background-color: var(--button-primary-hover-bg);
 }
 
-.onboarding-button:hover,
+.half-onboarding-button:active {
+  background-color: var(--button-primary-pressed-bg);
+}
+
+.grey-button {
+  background-color: var(--button-bg);
+  color: var(--button-fg);
+}
+
+.grey-button:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.grey-button:active {
+  background-color: var(--button-pressed-bg);
+}
+
+.onboarding-button:hover {
+  background-color: var(--button-primary-hover-bg);
+}
+
 .onboarding-button:active {
-  background-color: #0675d3;
+  background-color: var(--button-primary-pressed-bg);
 }
 
 .onboarding-button:focus,
@@ -444,10 +538,10 @@ manage things like container crud */
 /* Panel Footer */
 .panel-footer {
   align-items: center;
-  background: #efefef;
+  background: var(--button-bg);
   block-size: var(--icon-button-size);
-  border-block-end: 1px solid #d8d8d8;
-  color: #000;
+  border-block-start: 1px solid var(--separator);
+  color: var(--button-fg);
   display: flex;
   font-size: 13px;
   inline-size: 100%;
@@ -486,7 +580,7 @@ manage things like container crud */
 }
 
 .delete-container-confirm-title {
-  color: #000;
+  color: var(--text-heading);
   font-size: var(--font-size-heading);
 }
 
@@ -559,7 +653,8 @@ manage things like container crud */
 }
 
 .radio-choice > .radio-container > [type="radio"]:checked + label {
-  background: #d3d3d3;
+  background-color: var(--grey-50);
+  background-color: var(--radio-choice-bg);
   border-radius: 100%;
 }
 
@@ -590,14 +685,22 @@ manage things like container crud */
 }
 
 .edit-container-panel input[type="text"] {
+  background-color: var(--input-bg);
   block-size: 36px;
+  border: solid 1px var(--input-border);
   border-radius: 3px;
+  color: var(--input-fg);
   font-size: 14px;
   inline-size: 100%;
   padding-block-end: 5px;
   padding-block-start: 5px;
   padding-inline-end: 5px;
   padding-inline-start: 5px;
+}
+
+.edit-container-panel input[type="text"]:focus {
+  box-shadow: 0 0 0 1px #0a84ff inset, 0 0 0 1px #0a84ff, 0 0 0 4px rgba(10, 132, 255, 0.3);
+  outline: none;
 }
 
 .edit-container-panel legend,
@@ -665,7 +768,7 @@ manage things like container crud */
 
 h3.title {
   block-size: 40px;
-  color: #000;
+  color: var(--text-heading);
   font-size: 13px;
   font-weight: bold;
   inline-size: 100%;
@@ -703,8 +806,17 @@ h3.title {
 
 .hover-highlight:hover,
 .hover-highlight:focus {
-  background: var(--highlight-blue);
-  color: #fff;
+  background: var(--text-highlight-bg);
+  color: var(--text-highlight-fg);
+}
+
+.bottom-btn.hover-highlight:hover {
+  background: var(--button-hover-bg);
+  color: var(--button-fg);
+}
+
+.bottom-btn.hover-highlight:active {
+  background: var(--button-pressed-bg);
 }
 
 .menu-item-name {
@@ -726,6 +838,16 @@ h3.title {
   margin-inline-end: 8px;
   margin-inline-start: 16px;
   text-align: center;
+}
+
+img.menu-icon,
+.info-icon img,
+.menu-icon img {
+  filter: invert(var(--icon-inverted));
+}
+
+.favicon img.menu-icon {
+  filter: none;
 }
 
 /* Maintain 1:1 square ratio for Favicons of websites added to a specific container */
@@ -768,11 +890,12 @@ h3.title {
   padding-block-start: 2px;
   padding-inline-end: 2px;
   padding-inline-start: 2px;
+  filter: invert(var(--icon-inverted));
 }
 
 hr {
   border: 0;
-  border-block-start: 1px solid var(--hr-grey);
+  border-block-start: 1px solid var(--separator);
   display: block;
   margin-block-end: 0;
   margin-block-start: 6px;
@@ -785,7 +908,7 @@ hr {
 }
 
 .sub-header {
-  color: var(--text-grey);
+  color: var(--text-normal);
   height: 24px;
   line-height: 24px;
   padding-block-end: 0;
@@ -795,7 +918,7 @@ hr {
 }
 
 .edit-form {
-  color: var(--text-grey);
+  color: var(--text-normal);
   flex: 1;
   padding-block-end: 0;
   padding-block-start: 0;
@@ -811,8 +934,8 @@ hr {
 }
 
 .bottom-btn {
-  background-color: var(--hr-grey);
-  border: solid 1px #d9d9d9;
+  background-color: var(--button-bg);
+  border-top: solid 1px var(--separator);
   cursor: pointer;
   height: 41px;
   inline-size: 100%;
@@ -826,8 +949,7 @@ hr {
 }
 
 .delete-container {
-  background-color: #fff;
-  border-block-start: solid 1px var(--hr-grey);
+  border-block-start: solid 1px var(--separator);
   cursor: default;
   display: flex;
   height: 65px;
@@ -840,9 +962,10 @@ hr {
 }
 
 .delete-btn {
-  background-color: rgba(12, 12, 13, 0.1);
+  background-color: var(--button-bg);
   border: 0;
   border-radius: 2px;
+  color: var(--button-fg);
   cursor: pointer;
   height: 30px;
   inline-size: 100%;
@@ -850,11 +973,25 @@ hr {
   text-align: center;
 }
 
+.delete-btn:hover {
+  background-color: var(--button-hover-bg);
+}
+
+.delete-btn:active {
+  background-color: var(--button-pressed-bg);
+}
+
+.delete-btn:focus {
+  box-shadow: 0 0 0 1px #0a84ff inset, 0 0 0 1px #0a84ff, 0 0 0 4px rgba(10, 132, 255, 0.3);
+  outline: none;
+}
+
 .btn-return.arrow-left {
-  background-color: rgba(255, 255, 255, 1);
+  background-color: transparent;
   background-image: url("/img/arrow-icon-left.svg");
   border: 0;
   cursor: pointer;
+  filter: invert(var(--icon-inverted));
   height: 1.2rem;
   inline-size: 1.2rem;
   inset-block-start: 15px;
@@ -863,7 +1000,7 @@ hr {
 }
 
 input {
-  border: solid 1px #bebebe;
+  border: solid 1px var(--input-border);
   border-radius: 2px;
 }
 
@@ -895,7 +1032,7 @@ input {
 }
 
 .manage-assigned-sites-list {
-  color: var(--highlight-blue);
+  color: var(--link-fg);
 }
 
 .info-icon {
@@ -952,98 +1089,3 @@ tr:hover > td > .trash-button {
   height: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --title-text-color: #fff;
-    --text-normal-color: #f9f9fa;
-    --text-heading-color: #fff;
-  }
-
-  html {
-    background-color: #4a4a4a;
-  }
-
-  body {
-    color: #fff;
-
-    --hr-grey: #38383d;
-    --text-grey: #f9f9fa;
-  }
-
-  h3.title {
-    color: #fff;
-  }
-
-  .bottom-btn {
-    background-color: #737373;
-    border: solid 1px #737373;
-  }
-
-  .btn-return.arrow-left {
-    background-color: transparent;
-  }
-
-  .onboarding-title,
-  .delete-container-confirm-title {
-    color: #ededf0;
-  }
-
-  input {
-    border: solid 1px #737373;
-  }
-
-  #edit-container-panel-name-input {
-    background-color: #38383d;
-    color: #fff;
-  }
-
-  .delete-container {
-    background-color: #4a4a4a;
-  }
-
-  .delete-btn {
-    background-color: #737373;
-    color: #f9f9fa;
-  }
-
-  .cancel-button,
-  .grey-button {
-    background-color: #737373;
-    color: #fff;
-  }
-
-  .button.secondary:hover,
-  .button.secondary:focus {
-    background-color: #676767;
-  }
-
-  .panel-footer {
-    border-block-end: solid 1px #4a4a4a;
-  }
-
-  img.menu-icon,
-  .menu-icon > img,
-  .menu-arrow > img,
-  .info-icon > img,
-  .btn-return.arrow-left {
-    filter: invert(1);
-  }
-
-  #edit-sites-assigned .menu-icon,
-  #container-info-table .menu-icon {
-    filter: invert(0);
-  }
-
-  .truncate-text::after {
-    background: #4a4a4a;
-    mask-image: linear-gradient(to right, transparent, #4a4a4a 70%);
-  }
-
-  [data-identity-color="grey"] {
-    --identity-icon-color: #ededf0;
-  }
-
-  [type="radio"]:checked + [data-identity-color="grey"] {
-    --identity-icon-color: #616161;
-  }
-}
