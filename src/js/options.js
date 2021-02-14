@@ -27,27 +27,45 @@ async function enableDisableReplaceTab() {
 
 async function setupOptions() {
   const backupLink = document.getElementById("containers-save-link");
-  document.getElementById("containers-save-button").addEventListener("click", async () => {
-    const content = JSON.stringify(
-      await browser.runtime.sendMessage({
-        method: "backupIdentitiesState"
-      })
-    );
-    backupLink.href = `data:application/json;base64,${btoa(content)}`;
-    backupLink.download = `containers-backup-${(new Date()).toISOString()}.json`;
-    backupLink.click();
+  const backupResult = document.getElementById("containers-save-result");
+  document.getElementById("containers-save-button").addEventListener("click", async e => {
+    e.preventDefault();
+    try {
+      const content = JSON.stringify(
+        await browser.runtime.sendMessage({
+          method: "backupIdentitiesState"
+        })
+      );
+      backupLink.href = `data:application/json;base64,${btoa(content)}`;
+      backupLink.download = `containers-backup-${(new Date()).toISOString()}.json`;
+      backupLink.click();
+      backupResult.textContent = "";
+    } catch (err) {
+      backupResult.textContent = `Something goes wrong: ${err.message || err}`;
+      backupResult.style.color = "red";
+    }
   }, { capture: true, passive: false });
 
   const restoreInput = document.getElementById("containers-restore-input");
-  restoreInput.addEventListener("change", () => {
+  const restoreResult = document.getElementById("containers-restore-result");
+  restoreInput.addEventListener("change", e => {
+    e.preventDefault();
     if (restoreInput.files.length) {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const identitiesState = JSON.parse(reader.result);
-        await browser.runtime.sendMessage({
-          method: "restoreIdentitiesState",
-          identities: identitiesState
-        });
+        try {
+          const identitiesState = JSON.parse(reader.result);
+          const restoredCount = await browser.runtime.sendMessage({
+            method: "restoreIdentitiesState",
+            identities: identitiesState
+          });
+          restoreResult.textContent = `${restoredCount} containers restored.`;
+          restoreResult.style.color = "green";
+        } catch (err) {
+          console.error("Cannot restore containers list: %s", err.message || err);
+          restoreResult.textContent = "The file is corrupted, or isn't a container backup file.";
+          restoreResult.style.color = "red";
+        }
       };
       reader.readAsText(restoreInput.files.item(0));
     }
