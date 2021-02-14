@@ -55,12 +55,17 @@ async function setupOptions() {
       reader.onloadend = async () => {
         try {
           const identitiesState = JSON.parse(reader.result);
-          const restoredCount = await browser.runtime.sendMessage({
+          const { created: restoredCount, incomplete } = await browser.runtime.sendMessage({
             method: "restoreIdentitiesState",
             identities: identitiesState
           });
-          restoreResult.textContent = `${restoredCount} containers restored.`;
-          restoreResult.style.color = "green";
+          if (incomplete.length === 0) {
+            restoreResult.textContent = `${restoredCount} containers restored.`;
+            restoreResult.style.color = "green";
+          } else {
+            restoreResult.textContent = `${restoredCount} containers restored, but some lost their site association (${incomplete.join(", ")}).`;
+            restoreResult.style.color = "orange";
+          }
         } catch (err) {
           console.error("Cannot restore containers list: %s", err.message || err);
           restoreResult.textContent = "The file is corrupted, or isn't a container backup file.";

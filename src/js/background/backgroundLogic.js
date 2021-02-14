@@ -256,20 +256,27 @@ const backgroundLogic = {
 
   async restoreIdentitiesState(identities) {
     const backup = await browser.contextualIdentities.query({});
+    const incomplete = [];
     let allSucceed = true;
     const identitiesPromise = identities.map(async ({ color, icon, name, sites }) => {
       try {
+        if (typeof color !== "string" || typeof icon !== "string" || typeof name !== "string" || !Array.isArray((sites)))
+          throw new Error("Corrupted container backup");
         const identity = await browser.contextualIdentities.create({ color, icon, name });
         try {
           await identityState.storageArea.get(identity.cookieStoreId);
           const userContextId = this.getUserContextIdFromCookieStoreId(identity.cookieStoreId);
-          for (const site of sites) {
-            const pageUrl = `http://${site.hostname}`; // protocol doesn't really matter here
-            const data = Object.assign({}, site, { userContextId });
-            delete data.hostname;
-            await assignManager.storageArea.set(pageUrl, data);
+          for (const { neverAsk, hostname } of sites) {
+            if (typeof neverAsk !== "boolean" || typeof hostname !== "string" || hostname === "")
+              throw new Error("Corrupted site association");
+            const pageUrl = `http://${hostname}`; // protocol doesn't really matter here
+            await assignManager.storageArea.set(pageUrl, {
+              neverAsk,
+              userContextId
+            });
           }
         } catch (err) {
+          incomplete.push(name); // site association damaged
         }
         return identity;
       } catch (err) {
@@ -287,7 +294,7 @@ const backgroundLogic = {
           }
         })
       );
-      throw new Error("Some containers creation failed");
+      throw new Error("Some containers couldn't be created");
     } else { // Importation succeed, remove old identities
       await Promise.all(
         backup.map(async (identity) => {
@@ -296,7 +303,7 @@ const backgroundLogic = {
         })
       );
     }
-    return created.length;
+    return { created: created.length, incomplete };
   },
 
   async queryIdentitiesState(windowId) {
