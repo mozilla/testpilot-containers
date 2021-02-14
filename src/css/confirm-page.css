@@ -18,7 +18,6 @@ main {
 button .container-name,
 #current-container-name {
   font-weight: bold;
-  text-transform: capitalize;
 }
 
 @media only screen and (max-width: 1300px) {

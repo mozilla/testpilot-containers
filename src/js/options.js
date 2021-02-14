@@ -16,12 +16,13 @@ async function requestPermissions() {
 
 async function enableDisableSync() {
   const checkbox = document.querySelector("#syncCheck");
-  if (checkbox.checked) {
-    await browser.storage.local.set({syncEnabled: true});
-  } else {
-    await browser.storage.local.set({syncEnabled: false});
-  }
+  await browser.storage.local.set({syncEnabled: !!checkbox.checked});
   browser.runtime.sendMessage({ method: "resetSync" });
+}
+
+async function enableDisableReplaceTab() {
+  const checkbox = document.querySelector("#replaceTabCheck");
+  await browser.storage.local.set({replaceTabEnabled: !!checkbox.checked});
 }
 
 async function setupOptions() {
@@ -55,14 +56,12 @@ async function setupOptions() {
 
   const hasPermission = await browser.permissions.contains({permissions: ["bookmarks"]});
   const { syncEnabled } = await browser.storage.local.get("syncEnabled");
+  const { replaceTabEnabled } = await browser.storage.local.get("replaceTabEnabled");
   if (hasPermission) {
     document.querySelector("#bookmarksPermissions").checked = true;
   }
-  if (syncEnabled) {
-    document.querySelector("#syncCheck").checked = true;
-  } else {
-    document.querySelector("#syncCheck").checked = false;
-  }
+  document.querySelector("#syncCheck").checked = !!syncEnabled;
+  document.querySelector("#replaceTabCheck").checked = !!replaceTabEnabled;
   setupContainerShortcutSelects();
 }
 
@@ -110,6 +109,7 @@ function resetOnboarding() {
 document.addEventListener("DOMContentLoaded", setupOptions);
 document.querySelector("#bookmarksPermissions").addEventListener( "change", requestPermissions);
 document.querySelector("#syncCheck").addEventListener( "change", enableDisableSync);
+document.querySelector("#replaceTabCheck").addEventListener( "change", enableDisableReplaceTab);
 document.querySelector("button").addEventListener("click", resetOnboarding);
 
 for (let i=0; i < NUMBER_OF_KEYBOARD_SHORTCUTS; i++) {

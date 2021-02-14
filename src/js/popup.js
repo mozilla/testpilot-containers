@@ -10,6 +10,8 @@ const DEFAULT_ICON = "circle";
 const NEW_CONTAINER_ID = "new";
 
 const ONBOARDING_STORAGE_KEY = "onboarding-stage";
+const CONTAINER_ORDER_STORAGE_KEY = "container-order";
+const CONTAINER_DRAG_DATA_TYPE = "firefox-container";
 
 // List of panels
 const P_ONBOARDING_1 = "onboarding1";
@@ -192,16 +194,29 @@ const Logic = {
     elementToEnable.classList.remove("disabled-menu-item");
   },
 
+  async saveContainerOrder(rows) {
+    const containerOrder = {};
+    rows.forEach((node, index) => {
+      return containerOrder[node.dataset.containerId] = index;
+    });
+    await browser.storage.local.set({
+      [CONTAINER_ORDER_STORAGE_KEY]: containerOrder
+    });
+  },
+
   async refreshIdentities() {
-    const [identities, state] = await Promise.all([
+    const [identities, state, containerOrderStorage] = await Promise.all([
       browser.contextualIdentities.query({}),
       browser.runtime.sendMessage({
         method: "queryIdentitiesState",
         message: {
           windowId: browser.windows.WINDOW_ID_CURRENT
         }
-      })
+      }),
+      browser.storage.local.get([CONTAINER_ORDER_STORAGE_KEY])
     ]);
+    const containerOrder =
+      containerOrderStorage && containerOrderStorage[CONTAINER_ORDER_STORAGE_KEY];
     this._identities = identities.map((identity) => {
       const stateObject = state[identity.cookieStoreId];
       if (stateObject) {
@@ -211,8 +226,11 @@ const Logic = {
         identity.numberOfOpenTabs = stateObject.numberOfOpenTabs;
         identity.isIsolated = stateObject.isIsolated;
       }
+      if (containerOrder) {
+        identity.order = containerOrder[identity.cookieStoreId];
+      }
       return identity;
-    });
+    }).sort((i1, i2) => i1.order - i2.order);
   },
 
   getPanelSelector(panel) {
@@ -1006,11 +1024,58 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
             data-identity-color="${identity.color}">
           </div>
         </div>
-        <span class="menu-text">${identity.name}</span>`;
+        <span class="menu-text">${identity.name}</span>
+        <span class="move-button">
+          <img
+            class="pop-button-image"
+            src="/img/container-move.svg"
+          />
+        </span>`;
 
       fragment.appendChild(tr);
 
       tr.appendChild(td);
+
+      tr.draggable = true;
+      tr.dataset.containerId = identity.cookieStoreId;
+      tr.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData(CONTAINER_DRAG_DATA_TYPE, identity.cookieStoreId);
+      });
+      tr.addEventListener("dragover", (e) => {
+        if (e.dataTransfer.types.includes(CONTAINER_DRAG_DATA_TYPE)) {
+          tr.classList.add("drag-over");
+          e.preventDefault();
+        }
+      });
+      tr.addEventListener("dragenter", (e) => {
+        if (e.dataTransfer.types.includes(CONTAINER_DRAG_DATA_TYPE)) {
+          e.preventDefault();
+          tr.classList.add("drag-over");
+        }
+      });
+      tr.addEventListener("dragleave", (e) => {
+        if (e.dataTransfer.types.includes(CONTAINER_DRAG_DATA_TYPE)) {
+          e.preventDefault();
+          tr.classList.remove("drag-over");
+        }
+      });
+      tr.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        const parent = tr.parentNode;
+        const containerId = e.dataTransfer.getData(CONTAINER_DRAG_DATA_TYPE);
+        let droppedElement;
+        parent.childNodes.forEach((node) => {
+          if (node.dataset.containerId === containerId) {
+            droppedElement = node;
+          }
+        });
+        if (droppedElement && droppedElement !== tr) {
+          tr.classList.remove("drag-over");
+          parent.insertBefore(droppedElement, tr);
+          await Logic.saveContainerOrder(parent.childNodes);
+          await Logic.refreshIdentities();
+        }
+      });
 
       Utils.addEnterHandler(tr, () => {
         pickedFunction(identity);

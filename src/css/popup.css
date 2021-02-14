@@ -691,6 +691,10 @@ h3.title {
   max-inline-size: 300px;
 }
 
+.menu-item.drag-over td {
+  border-block-start: 2px solid var(--text-normal-color);
+}
+
 .disabled-menu-item {
   color: grey;
   cursor: default;
@@ -930,4 +934,116 @@ tr > td > .trash-button {
 
 tr:hover > td > .trash-button {
   display: block;
+}
+
+.move-button {
+  cursor: move;
+  display: inline-block;
+  height: 100%;
+  inline-size: 16px;
+  margin-block-end: 4px;
+  margin-block-start: 4px;
+  margin-inline-end: 10px;
+  margin-inline-start: auto;
+  text-align: center;
+}
+
+.move-button > img {
+  height: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --title-text-color: #fff;
+    --text-normal-color: #f9f9fa;
+    --text-heading-color: #fff;
+  }
+
+  html {
+    background-color: #4a4a4a;
+  }
+
+  body {
+    color: #fff;
+
+    --hr-grey: #38383d;
+    --text-grey: #f9f9fa;
+  }
+
+  h3.title {
+    color: #fff;
+  }
+
+  .bottom-btn {
+    background-color: #737373;
+    border: solid 1px #737373;
+  }
+
+  .btn-return.arrow-left {
+    background-color: transparent;
+  }
+
+  .onboarding-title,
+  .delete-container-confirm-title {
+    color: #ededf0;
+  }
+
+  input {
+    border: solid 1px #737373;
+  }
+
+  #edit-container-panel-name-input {
+    background-color: #38383d;
+    color: #fff;
+  }
+
+  .delete-container {
+    background-color: #4a4a4a;
+  }
+
+  .delete-btn {
+    background-color: #737373;
+    color: #f9f9fa;
+  }
+
+  .cancel-button,
+  .grey-button {
+    background-color: #737373;
+    color: #fff;
+  }
+
+  .button.secondary:hover,
+  .button.secondary:focus {
+    background-color: #676767;
+  }
+
+  .panel-footer {
+    border-block-end: solid 1px #4a4a4a;
+  }
+
+  img.menu-icon,
+  .menu-icon > img,
+  .menu-arrow > img,
+  .info-icon > img,
+  .btn-return.arrow-left {
+    filter: invert(1);
+  }
+
+  #edit-sites-assigned .menu-icon,
+  #container-info-table .menu-icon {
+    filter: invert(0);
+  }
+
+  .truncate-text::after {
+    background: #4a4a4a;
+    mask-image: linear-gradient(to right, transparent, #4a4a4a 70%);
+  }
+
+  [data-identity-color="grey"] {
+    --identity-icon-color: #ededf0;
+  }
+
+  [type="radio"]:checked + [data-identity-color="grey"] {
+    --identity-icon-color: #616161;
+  }
 }

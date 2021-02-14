@@ -51,6 +51,11 @@ window.assignManager = {
       return !!syncEnabled;
     },
 
+    async getReplaceTabEnabled() {
+      const { replaceTabEnabled } = await browser.storage.local.get("replaceTabEnabled");
+      return !!replaceTabEnabled;
+    },
+
     getByUrlKey(siteStoreKey) {
       return new Promise((resolve, reject) => {
         this.area.get([siteStoreKey]).then((storageResponse) => {
@@ -233,9 +238,11 @@ window.assignManager = {
         return {};
       }
     }
+    const replaceTabEnabled = await this.storageArea.getReplaceTabEnabled();
     const removeTab = backgroundLogic.NEW_TAB_PAGES.has(tab.url)
       || (messageHandler.lastCreatedTab
-        && messageHandler.lastCreatedTab.id === tab.id);
+        && messageHandler.lastCreatedTab.id === tab.id)
+      || replaceTabEnabled;
     const openTabId = removeTab ? tab.openerTabId : tab.id;
 
     if (!this.canceledRequests[tab.id]) {

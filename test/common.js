@@ -87,7 +87,8 @@ const initializeWithTab = async (details = {
             "browserActionBadgesClicked": [],
             "onboarding-stage": 7,
             "achievements": [], 
-            "syncEnabled": true
+            "syncEnabled": true,
+            "replaceTabEnabled": false
           });
           window.browser.storage.local.set.resetHistory();
           window.browser.storage.sync.clear();
