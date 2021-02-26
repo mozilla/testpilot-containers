@@ -20,7 +20,7 @@
   --grey-90-a10: rgba(12, 12, 13, 0.1);
   --grey-90-a20: rgba(12, 12, 13, 0.2);
   --grey-90-a30: rgba(12, 12, 13, 0.3);
-  --white-100: #ffffff;
+  --white-100: #fff;
 
   /* calculated from 12px */
   --font-size-heading: 1.33rem; /* 16px */
@@ -108,11 +108,10 @@
   padding-inline-start: 0;
 }
 
-
 html {
   background-color: var(--popup-bg);
-  box-sizing: border-box;
   box-shadow: 0 0 0 1px var(--popup-border);
+  box-sizing: border-box;
   font-size: 12px;
 }
 
@@ -132,7 +131,6 @@ html,
 body {
   block-size: 100%; /* Bugfix: issue 948 */
 }
-
 
 @media (min-resolution: 1dppx) {
   html {
@@ -653,7 +651,6 @@ manage things like container crud */
 }
 
 .radio-choice > .radio-container > [type="radio"]:checked + label {
-  background-color: var(--grey-50);
   background-color: var(--radio-choice-bg);
   border-radius: 100%;
 }
@@ -884,13 +881,13 @@ img.menu-icon,
 }
 
 .menu-arrow img {
+  filter: invert(var(--icon-inverted));
   height: 12px;
   inline-size: 12px;
   padding-block-end: 2px;
   padding-block-start: 2px;
   padding-inline-end: 2px;
   padding-inline-start: 2px;
-  filter: invert(var(--icon-inverted));
 }
 
 hr {
@@ -935,7 +932,7 @@ hr {
 
 .bottom-btn {
   background-color: var(--button-bg);
-  border-top: solid 1px var(--separator);
+  border-block-start: solid 1px var(--separator);
   cursor: pointer;
   height: 41px;
   inline-size: 100%;
@@ -1088,4 +1085,3 @@ tr:hover > td > .trash-button {
 .move-button > img {
   height: 16px;
 }
-
