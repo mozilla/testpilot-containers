@@ -2,7 +2,7 @@
 
 Everyone is welcome to contribute to containers. Reach out to team members if you have questions:
 
-- IRC: #containers on irc.mozilla.org
+- Matrix chat: #containers:mozilla.org
 - Email: containers@mozilla.com
 
 ## Filing bugs
