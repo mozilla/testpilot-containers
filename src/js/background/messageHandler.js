@@ -181,6 +181,9 @@ const messageHandler = {
     }, {urls: ["<all_urls>"], types: ["main_frame"]});
 
     browser.tabs.onCreated.addListener((tab) => {
+      if (tab.incognito) {
+        badge.disableAddon(tab.id);
+      }
       // lets remember the last tab created so we can close it if it looks like a redirect
       this.lastCreatedTab = tab;
       if (tab.cookieStoreId) {
@@ -225,23 +228,12 @@ const messageHandler = {
 
     // When the user opens their _ tab, give them the achievement
     if (countOfContainerTabsOpened === 100) {
-      const storage = await browser.storage.local.get({achievements: []});
-      storage.achievements.push({"name": "manyContainersOpened", "done": false});
-      // use set and spread to create a unique array
-      const achievements = [...new Set(storage.achievements)];
-      browser.storage.local.set({achievements});
-      browser.browserAction.setBadgeBackgroundColor({color: "rgba(0,217,0,255)"});
-      browser.browserAction.setBadgeText({text: "NEW"});
+      badge.displayBrowserActionBadge("showAchievement");      
     }
   },
 
   async onFocusChangedCallback(windowId) {
     assignManager.removeContextMenu();
-    // browserAction loses background color in new windows ...
-    // https://bugzil.la/1314674
-    // https://github.com/mozilla/testpilot-containers/issues/608
-    // ... so re-call displayBrowserActionBadge on window changes
-    badge.displayBrowserActionBadge();
     browser.tabs.query({active: true, windowId}).then((tabs) => {
       if (tabs && tabs[0]) {
         assignManager.calculateContextMenu(tabs[0]);
