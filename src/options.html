@@ -82,6 +82,20 @@
       <h3>Onboarding:</h3>
       <button>Reset Onboarding Panels</button>
       <p><em>Toggle this to see the onboarding panels again.</em></p>
+      <h3>Backup:</h3>
+      <fieldset>
+        <legend>Restore</legend>
+        <input id="containers-restore-input" type="file">
+        <p><em id="containers-restore-result"></em></p>
+        <p><strong>WARNING !</strong> This operation will erase current configuration with the imported one. All cookies will be discarded.</p>
+      </fieldset>
+      <fieldset>
+        <legend>Save</legend>
+        <a id="containers-save-link" href="#" style="display: none;"></a>
+        <button id="containers-save-button">Backup</button>
+        <p><em id="containers-save-result"></em></p>
+        <p>NOTE : Backup containers names, icons and colors, but <em>not</em> containers' cookies.</p>
+      </fieldset>
     </form>
     <script src="js/options.js"></script>
   </body>

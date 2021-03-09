@@ -242,6 +242,70 @@ const backgroundLogic = {
     return browser.tabs.remove(tabIds);
   },
 
+  async backupIdentitiesState() {
+    const identities = await browser.contextualIdentities.query({});
+    return Promise.all(
+      identities.map(async ({ cookieStoreId, color, icon, name }) => {
+        const userContextId = this.getUserContextIdFromCookieStoreId(cookieStoreId);
+        const sitesByContainer = await assignManager.storageArea.getAssignedSites(userContextId);
+        const sites = Object.values(sitesByContainer).map(({ neverAsk, hostname }) => ({ neverAsk, hostname }));
+        return ({ color, icon, name, sites });
+      })
+    );
+  },
+
+  async restoreIdentitiesState(identities) {
+    const backup = await browser.contextualIdentities.query({});
+    const incomplete = [];
+    let allSucceed = true;
+    const identitiesPromise = identities.map(async ({ color, icon, name, sites }) => {
+      try {
+        if (typeof color !== "string" || typeof icon !== "string" || typeof name !== "string" || !Array.isArray((sites)))
+          throw new Error("Corrupted container backup");
+        const identity = await browser.contextualIdentities.create({ color, icon, name });
+        try {
+          await identityState.storageArea.get(identity.cookieStoreId);
+          const userContextId = this.getUserContextIdFromCookieStoreId(identity.cookieStoreId);
+          for (const { neverAsk, hostname } of sites) {
+            if (typeof neverAsk !== "boolean" || typeof hostname !== "string" || hostname === "")
+              throw new Error("Corrupted site association");
+            const pageUrl = `http://${hostname}`; // protocol doesn't really matter here
+            await assignManager.storageArea.set(pageUrl, {
+              neverAsk,
+              userContextId
+            });
+          }
+        } catch (err) {
+          incomplete.push(name); // site association damaged
+        }
+        return identity;
+      } catch (err) {
+        allSucceed = false;
+        return null;
+      }
+    });
+    const created = await Promise.all(identitiesPromise);
+    if (!allSucceed) { // Importation failed, restore previous state
+      await Promise.all(
+        created.map(async (identityOrNull) => {
+          if (identityOrNull) {
+            await identityState.storageArea.remove(identityOrNull.cookieStoreId);
+            await browser.contextualIdentities.remove(identityOrNull.cookieStoreId);
+          }
+        })
+      );
+      throw new Error("Some containers couldn't be created");
+    } else { // Importation succeed, remove old identities
+      await Promise.all(
+        backup.map(async (identity) => {
+          await identityState.storageArea.remove(identity.cookieStoreId);
+          await browser.contextualIdentities.remove(identity.cookieStoreId);
+        })
+      );
+    }
+    return { created: created.length, incomplete };
+  },
+
   async queryIdentitiesState(windowId) {
     const identities = await browser.contextualIdentities.query({});
     const identitiesOutput = {};

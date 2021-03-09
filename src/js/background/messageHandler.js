@@ -75,6 +75,12 @@ const messageHandler = {
           windowId: m.windowId
         });
         break;
+      case "backupIdentitiesState":
+        response = backgroundLogic.backupIdentitiesState();
+        break;
+      case "restoreIdentitiesState":
+        response = backgroundLogic.restoreIdentitiesState(m.identities);
+        break;
       case "queryIdentitiesState":
         response = backgroundLogic.queryIdentitiesState(m.message.windowId);
         break;
