@@ -493,9 +493,9 @@ async function reconcileSiteAssignments() {
     await sync.storageArea.getDeletedSiteList();
   for(const siteStoreKey of deletedSiteList) {
     if (Object.prototype.hasOwnProperty.call(assignedSitesLocal,siteStoreKey)) {
-      assignManager
+      await assignManager
         .storageArea
-        .remove(siteStoreKey);
+        .remove(siteStoreKey, false);
     }
   }
 

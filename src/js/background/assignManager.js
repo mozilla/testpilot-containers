@@ -89,13 +89,13 @@ window.assignManager = {
       return;
     },
 
-    async remove(pageUrlorUrlKey) {
+    async remove(pageUrlorUrlKey, shouldSync = true) {
       const siteStoreKey = this.getSiteStoreKey(pageUrlorUrlKey);
       // When we remove an assignment we should clear all the exemptions
       this.removeExempted(pageUrlorUrlKey);
       await this.area.remove([siteStoreKey]);
       const syncEnabled = await this.getSyncEnabled();
-      if (syncEnabled) await sync.storageArea.backup({siteStoreKey});
+      if (shouldSync && syncEnabled) await sync.storageArea.backup({siteStoreKey});
       return;
     },
 
