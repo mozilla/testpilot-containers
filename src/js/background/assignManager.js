@@ -102,6 +102,7 @@ window.assignManager = {
     async deleteContainer(userContextId) {
       const sitesByContainer = await this.getAssignedSites(userContextId);
       this.area.remove(Object.keys(sitesByContainer));
+      identityState.storageArea.remove(backgroundLogic.cookieStoreId(userContextId));
     },
 
     async getAssignedSites(userContextId = null) {
