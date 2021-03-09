@@ -1,3 +1,5 @@
+/*global getBogusProxy */
+
 const DEFAULT_FAVICON = "/img/blank-favicon.svg";
 
 // TODO use export here instead of globals
@@ -19,6 +21,40 @@ const Utils = {
     imageElement.addEventListener("load", loadListener);
     return imageElement;
   },
+
+  // See comment in PR #313 - so far the (hacky) method being used to block proxies is to produce a sufficiently long random address
+  getBogusProxy() {
+    const bogusFailover = 1;
+    const bogusType = "socks4";
+    const bogusPort = 9999;
+    const bogusUsername = "foo";
+    if(typeof window.Utils.pregeneratedString !== "undefined")
+    {
+      return {type:bogusType, host:`w.${window.Utils.pregeneratedString}.coo`, port:bogusPort, username:bogusUsername, failoverTimeout:bogusFailover};
+    }
+    else
+    {
+      // Initialize Utils.pregeneratedString
+      window.Utils.pregeneratedString = "";
+
+      // We generate a cryptographically random string (of length specified in bogusLength), but we only do so once - thus negating any time delay caused
+      const bogusLength = 8;
+      const array = new Uint8Array(bogusLength);
+      window.crypto.getRandomValues(array);
+      for(let i = 0; i < bogusLength; i++)
+      {
+        const s = array[i].toString(16);
+        if(s.length === 1)
+          window.Utils.pregeneratedString += `0${s}`;
+        else
+          window.Utils.pregeneratedString += s;
+      }
+
+      // The only issue with this approach is that if (for some unknown reason) pregeneratedString is not saved, it will result in an infinite loop - but better than a privacy leak!
+      return getBogusProxy();
+    }
+  },
+
   /**
  * Escapes any occurances of &, ", <, > or / with XML entities.
  *
@@ -62,7 +98,7 @@ const Utils = {
     }
     return false;
   },
-  
+
   addEnterHandler(element, handler) {
     element.addEventListener("click", (e) => {
       handler(e);
@@ -82,7 +118,7 @@ const Utils = {
         handler(e);
       }
     });
-  },  
+  },
 
   userContextId(cookieStoreId = "") {
     const userContextId = cookieStoreId.replace("firefox-container-", "");
@@ -102,10 +138,10 @@ const Utils = {
   async reloadInContainer(url, currentUserContextId, newUserContextId, tabIndex, active) {
     return await browser.runtime.sendMessage({
       method: "reloadInContainer",
-      url, 
-      currentUserContextId, 
-      newUserContextId, 
-      tabIndex, 
+      url,
+      currentUserContextId,
+      newUserContextId,
+      tabIndex,
       active
     });
   },
@@ -116,22 +152,30 @@ const Utils = {
     if (currentTab.cookieStoreId !== identity.cookieStoreId) {
       return await browser.runtime.sendMessage({
         method: "assignAndReloadInContainer",
-        url: currentTab.url, 
-        currentUserContextId: false, 
-        newUserContextId: assignedUserContextId, 
-        tabIndex: currentTab.index +1, 
+        url: currentTab.url,
+        currentUserContextId: false,
+        newUserContextId: assignedUserContextId,
+        tabIndex: currentTab.index +1,
         active:currentTab.active
       });
     }
     await Utils.setOrRemoveAssignment(
-      currentTab.id, 
-      currentTab.url, 
-      assignedUserContextId, 
+      currentTab.id,
+      currentTab.url,
+      assignedUserContextId,
       false
     );
   }
-
 };
 
-
 window.Utils = Utils;
+
+// The following creates a fake (but convincing) constant Utils.DEFAULT_PROXY
+Object.defineProperty(window.Utils, "DEFAULT_PROXY", {
+  value: Object.freeze({type: "direct"}),
+  writable: false,
+  enumerable: true,
+
+  // Setting configurable to false avoids deletion of Utils.DEFAULT_PROXY
+  configurable: false
+});

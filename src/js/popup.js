@@ -307,6 +307,10 @@ const Logic = {
     return Utils.userContextId(identity.cookieStoreId);
   },
 
+  cookieStoreId(userContextId) {
+    return `firefox-container-${userContextId}`;
+  },
+
   currentCookieStoreId() {
     const identity = Logic.currentIdentity();
     return identity.cookieStoreId;
@@ -803,8 +807,8 @@ Logic.registerPanel(P_CONTAINER_INFO, {
     });
     // Populating the panel: name and icon
     document.getElementById("container-info-title").textContent = identity.name;
-    
-    const alwaysOpen = document.querySelector("#always-open-in-info-panel");    
+
+    const alwaysOpen = document.querySelector("#always-open-in-info-panel");
     Utils.addEnterHandler(alwaysOpen, async () => {
       Utils.alwaysOpenInContainer(identity);
       window.close();
@@ -941,7 +945,7 @@ Logic.registerPanel(OPEN_NEW_CONTAINER_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1017,7 +1021,7 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1110,10 +1114,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
     const pickedFunction = function (identity) {
       const newUserContextId = Utils.userContextId(identity.cookieStoreId);
       Utils.reloadInContainer(
-        currentTab.url, 
-        false, 
+        currentTab.url,
+        false,
         newUserContextId,
-        currentTab.index + 1, 
+        currentTab.index + 1,
         currentTab.active
       );
       window.close();
@@ -1126,7 +1130,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
       tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="mac-icon">
           </div>
@@ -1139,10 +1143,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
 
       Utils.addEnterHandler(tr, () => {
         Utils.reloadInContainer(
-          currentTab.url, 
-          false, 
+          currentTab.url,
+          false,
           0,
-          currentTab.index + 1, 
+          currentTab.index + 1,
           currentTab.active
         );
         window.close();
@@ -1156,7 +1160,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
         tr.setAttribute("tabindex", "0");
         const td = document.createElement("td");
 
-        td.innerHTML = Utils.escaped`          
+        td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1208,7 +1212,7 @@ Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1348,8 +1352,9 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
           params: {
             name: document.getElementById("edit-container-panel-name-input").value || Logic.generateIdentityName(),
             icon: formValues.get("container-icon") || DEFAULT_ICON,
-            color: formValues.get("container-color") || DEFAULT_COLOR,
-          }
+            color: formValues.get("container-color") || DEFAULT_COLOR
+          },
+          proxy: proxifiedContainers.parseProxy(document.getElementById("edit-container-panel-proxy").value) || Utils.DEFAULT_PROXY
         }
       });
       await Logic.refreshIdentities();
@@ -1421,6 +1426,37 @@ Logic.registerPanel(P_CONTAINER_EDIT, {
     });
     [...document.querySelectorAll("[name='container-icon']")].forEach(iconInput => {
       iconInput.checked = iconInput.value === identity.icon;
+    });
+
+    // Clear the proxy field before doing the retrieval requests below
+    document.querySelector("#edit-container-panel-proxy").value = "";
+
+    const edit_proxy_dom = function(result) {
+      const proxyInput = document.querySelector("#edit-container-panel-proxy");
+      if (result.type === "direct" || typeof result.type === "undefined") {
+        proxyInput.value = "";
+        return;
+      }
+      proxyInput.value = `${result.type}://${result.host}:${result.port}`;
+    };
+
+    proxifiedContainers.retrieve(identity.cookieStoreId).then((result) => {
+      edit_proxy_dom(result.proxy);
+    }, (error) => {
+      if(error.error === "uninitialized" || error.error === "doesnotexist") {
+        proxifiedContainers.set(identity.cookieStoreId, Utils.DEFAULT_PROXY, error.error === "uninitialized").then((result) => {
+          edit_proxy_dom(result);
+        }, (error) => {
+          proxifiedContainers.report_proxy_error(error, "popup.js: unexpected set(...) error");
+        }).catch((error) => {
+          proxifiedContainers.report_proxy_error(error, "popup.js: unexpected set(...) exception");
+        });
+      }
+      else {
+        proxifiedContainers.report_proxy_error(error, "popup.js: unknown error");
+      }
+    }).catch((err) => {
+      proxifiedContainers.report_proxy_error(err, "popup.js: unexpected retrieve error");
     });
 
     const deleteButton = document.getElementById("delete-container-button");

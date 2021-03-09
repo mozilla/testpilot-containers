@@ -45,6 +45,10 @@ const backgroundLogic = {
       await browser.contextualIdentities.remove(this.cookieStoreId(userContextId));
     }
     assignManager.deleteContainer(userContextId);
+
+    // Now remove the identity->proxy association in proxifiedContainers also
+    proxifiedContainers.delete(this.cookieStoreId(userContextId));
+
     return {done: true, userContextId};
   },
 
@@ -55,8 +59,17 @@ const backgroundLogic = {
         this.cookieStoreId(options.userContextId),
         options.params
       );
+
+      proxifiedContainers.set(this.cookieStoreId(options.userContextId), options.proxy);
     } else {
       donePromise = browser.contextualIdentities.create(options.params);
+
+      // We cannot yet access the new cookieStoreId via this.cookieStoreId(...), so we take this from the resolved promise
+      donePromise.then((identity) => {
+        proxifiedContainers.set(identity.cookieStoreId, options.proxy);
+      }).catch(() => {
+        // Empty because this should never happen theoretically.
+      });
     }
     await donePromise;
   },
@@ -183,7 +196,7 @@ const backgroundLogic = {
         index: -1
       });
     } else {
-      //As we get a blank tab here we will need to await the tabs creation
+      // As we get a blank tab here we will need to await the tabs creation
       newWindowObj = await browser.windows.create({
       });
       hiddenDefaultTabToClose = true;

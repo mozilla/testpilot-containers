@@ -109,10 +109,10 @@ window.assignManager = {
       const siteConfigs = await this.area.get();
       for(const urlKey of Object.keys(siteConfigs)) {
         if (urlKey.includes("siteContainerMap@@_")) {
-        // For some reason this is stored as string... lets check 
+        // For some reason this is stored as string... lets check
         // them both as that
-          if (!!userContextId && 
-              String(siteConfigs[urlKey].userContextId) 
+          if (!!userContextId &&
+              String(siteConfigs[urlKey].userContextId)
                 !== String(userContextId)) {
             continue;
           }
@@ -127,7 +127,7 @@ window.assignManager = {
     },
 
     /*
-     * Looks for abandoned site assignments. If there is no identity with 
+     * Looks for abandoned site assignments. If there is no identity with
      * the site assignment's userContextId (cookieStoreId), then the assignment
      * is removed.
      */
@@ -136,8 +136,8 @@ window.assignManager = {
       const macConfigs = await this.area.get();
       for(const configKey of Object.keys(macConfigs)) {
         if (configKey.includes("siteContainerMap@@_")) {
-          const cookieStoreId = 
-            "firefox-container-" + macConfigs[configKey].userContextId; 
+          const cookieStoreId =
+            "firefox-container-" + macConfigs[configKey].userContextId;
           const match = identitiesList.find(
             localIdentity => localIdentity.cookieStoreId === cookieStoreId
           );
@@ -146,7 +146,7 @@ window.assignManager = {
             continue;
           }
           const updatedSiteAssignment = macConfigs[configKey];
-          updatedSiteAssignment.identityMacAddonUUID = 
+          updatedSiteAssignment.identityMacAddonUUID =
             await identityState.lookupMACaddonUUID(match.cookieStoreId);
           await this.set(
             configKey,
@@ -164,7 +164,7 @@ window.assignManager = {
   _neverAsk(m) {
     const pageUrl = m.pageUrl;
     if (m.neverAsk === true) {
-      // If we have existing data and for some reason it hasn't been 
+      // If we have existing data and for some reason it hasn't been
       // deleted etc lets update it
       this.storageArea.get(pageUrl).then((siteSettings) => {
         if (siteSettings) {
@@ -182,6 +182,17 @@ window.assignManager = {
     const pageUrl = m.pageUrl;
     await this.storageArea.setExempted(pageUrl, m.tabId);
     return true;
+  },
+
+  async handleProxifiedRequest(requestInfo) {
+    // The following blocks potentially dangerous requests for privacy that come without a tabId
+    if(requestInfo.tabId === -1)
+      return Utils.getBogusProxy();
+
+    const tab = await browser.tabs.get(requestInfo.tabId);
+    const proxy = await proxifiedContainers.retrieveFromBackground(tab.cookieStoreId);
+
+    return proxy;
   },
 
   // Before a request is handled by the browser we decide if we should
@@ -212,7 +223,7 @@ window.assignManager = {
     const userContextId = this.getUserContextIdFromCookieStore(tab);
 
     // https://github.com/mozilla/multi-account-containers/issues/847
-    //    
+    //
     // Handle the case where this request's URL is not assigned to any particular
     // container. We must do the following check:
     //
@@ -228,7 +239,7 @@ window.assignManager = {
     //   - the current tab's container is locked and only allows "www.google.com"
     //   - the incoming request is for "www.amazon.com", which has no specific container assignment
     //   - in this case, we must re-open "www.amazon.com" in a new tab in the default container
-    const siteIsolatedReloadInDefault = 
+    const siteIsolatedReloadInDefault =
       await this._maybeSiteIsolatedReloadInDefault(siteSettings, tab);
 
     if (!siteIsolatedReloadInDefault) {
@@ -246,7 +257,7 @@ window.assignManager = {
     const openTabId = removeTab ? tab.openerTabId : tab.id;
 
     if (!this.canceledRequests[tab.id]) {
-      // we decided to cancel the request at this point, register 
+      // we decided to cancel the request at this point, register
       // canceled request
       this.canceledRequests[tab.id] = {
         requestIds: {
@@ -313,7 +324,7 @@ window.assignManager = {
           - As the history won't span from one container to another it
             seems most sane to not try and reopen a tab on history.back()
           - When users open a new tab themselves we want to make sure we
-            don't end up with three tabs as per: 
+            don't end up with three tabs as per:
             https://github.com/mozilla/testpilot-containers/issues/421
         If we are coming from an internal url that are used for the new
         tab page (NEW_TAB_PAGES), we can safely close as user is unlikely
@@ -348,7 +359,7 @@ window.assignManager = {
     // I.e. it will be opened in that container anyway, so we don't need to check if the
     // current tab's container is locked or not.
     if (siteSettings) {
-      return false;  
+      return false;
     }
 
     //tab is alredy reopening in the default container
@@ -363,10 +374,13 @@ window.assignManager = {
 
   init() {
     browser.contextMenus.onClicked.addListener((info, tab) => {
-      info.bookmarkId ? 
-        this._onClickedBookmark(info) : 
+      info.bookmarkId ?
+        this._onClickedBookmark(info) :
         this._onClickedHandler(info, tab);
     });
+
+    // Before anything happens we decide if the request should be proxified
+    browser.proxy.onRequest.addListener(this.handleProxifiedRequest, {urls: ["<all_urls>"]});
 
     // Before a request is handled by the browser we decide if we should
     // route through a different container
@@ -479,7 +493,7 @@ window.assignManager = {
   async _onClickedBookmark(info) {
 
     async function _getBookmarksFromInfo(info) {
-      const [bookmarkTreeNode] = 
+      const [bookmarkTreeNode] =
         await browser.bookmarks.get(info.bookmarkId);
       if (bookmarkTreeNode.type === "folder") {
         return browser.bookmarks.getChildren(bookmarkTreeNode.id);
@@ -489,9 +503,9 @@ window.assignManager = {
 
     const bookmarks = await _getBookmarksFromInfo(info);
     for (const bookmark of bookmarks) {
-      // Some checks on the urls from 
+      // Some checks on the urls from
       // https://github.com/Rob--W/bookmark-container-tab/ thanks!
-      if ( !/^(javascript|place):/i.test(bookmark.url) && 
+      if ( !/^(javascript|place):/i.test(bookmark.url) &&
           bookmark.type !== "folder") {
         const openInReaderMode = bookmark.url.startsWith("about:reader");
         if(openInReaderMode) {
@@ -569,12 +583,12 @@ window.assignManager = {
       actionName = "removed from assigned sites list";
 
       // remove site isolation if now empty
-      await this._maybeRemoveSiteIsolation(userContextId);   
+      await this._maybeRemoveSiteIsolation(userContextId);
     }
 
     if (tabId) {
       const tab = await browser.tabs.get(tabId);
-      setTimeout(function(){ 
+      setTimeout(function(){
         browser.tabs.sendMessage(tabId, {
           text: `Successfully ${actionName}`
         });
@@ -677,17 +691,17 @@ window.assignManager = {
   reloadPageInDefaultContainer(url, index, active, openerTabId) {
     // To create a new tab in the default container, it is easiest just to omit the
     // cookieStoreId entirely.
-    // 
+    //
     // Unfortunately, if you create a new tab WITHOUT a cookieStoreId but WITH an openerTabId,
     // then the new tab automatically inherits the opener tab's cookieStoreId.
     // I.e. it opens in the wrong container!
-    // 
+    //
     // So we have to explicitly pass in a cookieStoreId when creating the tab, since we
     // are specifying the openerTabId. There doesn't seem to be any way
     // to look up the default container's cookieStoreId programatically, so sadly
     // we have to hardcode it here as "firefox-default". This is potentially
     // not cross-browser compatible.
-    // 
+    //
     // Note that we could have just omitted BOTH cookieStoreId and openerTabId. But the
     // drawback then is that if the user later closes the newly-created tab, the browser
     // does not automatically return to the original opener tab. To get this desired behaviour,

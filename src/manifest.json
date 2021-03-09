@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Firefox Multi-Account Containers",
-  "version": "7.3.0",
+  "version": "8.0.0",
   "incognito": "not_allowed",
   "description": "Multi-Account Containers helps you keep all the parts of your online life contained in different tabs. Custom labels and color-coded tabs help keep different activities — like online shopping, travel planning, or checking work email — separate.",
   "icons": {
@@ -27,7 +27,8 @@
     "storage",
     "tabs",
     "webRequestBlocking",
-    "webRequest"
+    "webRequest",
+    "proxy"
   ],
   "optional_permissions": [
     "bookmarks"

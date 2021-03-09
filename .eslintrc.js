@@ -1,6 +1,6 @@
 module.exports = {
   "parserOptions": {
-    "ecmaVersion": 8
+    "ecmaVersion": 2018
   },
   "env": {
     "browser": true,
@@ -18,7 +18,8 @@ module.exports = {
     "XPCOMUtils": true,
     "OS": true,
     "ADDON_UNINSTALL": true,
-    "ADDON_DISABLE": true
+    "ADDON_DISABLE": true,
+    "proxifiedContainers": true
   },
   "plugins": [
     "promise",
