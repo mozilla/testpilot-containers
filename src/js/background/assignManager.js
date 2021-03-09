@@ -209,6 +209,23 @@ window.assignManager = {
       this.deleteContainer(siteSettings.userContextId);
       return {};
     }
+
+    // If a page has been opened in a nonstandard container, the exemption flag for that
+    //   tab will have been set, so following links in the same tab will not trigger new
+    //   prompts about the container in which to open the page. However, opening links
+    //   in a new tab will not be subject to this protection.
+    // To prevent this, explicitly allow requests that don't change host to go through.
+    if(options.originUrl) {
+      const originUrl = new window.URL(options.originUrl);
+      const newUrl = new window.URL(options.url);
+      if(originUrl.hostname === newUrl.hostname) {
+        // in fact, set this URL-tab combo exempted so future manual browsing
+        //   within it does also not trigger new prompts
+        this.storageArea.setExempted(options.url, options.tabId);
+        return {};
+      }
+    }
+
     const userContextId = this.getUserContextIdFromCookieStore(tab);
 
     // https://github.com/mozilla/multi-account-containers/issues/847
