@@ -93,7 +93,8 @@ const backgroundLogic = {
     // We can't open these we just have to throw them away
     if (protocol === "about:"
         || protocol === "chrome:"
-        || protocol === "moz-extension:") {
+        || protocol === "moz-extension:"
+        || protocol === "file:") {
       return false;
     }
     return true;
