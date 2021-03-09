@@ -2,7 +2,7 @@
 
 The Firefox Multi-Account Containers extension lets you carve out a separate box for each of your online lives – no more opening a different browser just to check your work email! [Learn More Here](https://blog.mozilla.org/firefox/introducing-firefox-multi-account-containers/)
 
-[Available on addons.mozilla.org](https://addons.mozilla.org/en-GB/firefox/addon/multi-account-containers/)
+[Available on addons.mozilla.org](https://addons.mozilla.org/firefox/addon/multi-account-containers/)
 
 For more info, see: 
 
@@ -69,12 +69,12 @@ There is a timeout test that sometimes fails on certain machines, so make sure t
 #### Publish to AMO
 
 1. `npm run-script build`
-2. [Upload the `.zip` to AMO](https://addons.mozilla.org/en-US/developers/addon/multi-account-containers/versions/submit/)
+2. [Upload the `.zip` to AMO](https://addons.mozilla.org/developers/addon/multi-account-containers/versions/submit/)
 
 #### Publish to GitHub
 Finally, we also publish the release to GitHub for those followers.
 
-1. Download the signed `.xpi` from [the addon versions page](https://addons.mozilla.org/en-US/developers/addon/multi-account-containers/versions)
+1. Download the signed `.xpi` from [the addon versions page](https://addons.mozilla.org/developers/addon/multi-account-containers/versions)
 2. [Make the new release on
    GitHub](https://github.com/mozilla/multi-account-containers/releases/new)
    * Use the version number for "Tag version" and "Release title"
