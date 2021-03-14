@@ -705,9 +705,8 @@ window.assignManager = {
       return browser.tabs.create({url, cookieStoreId, index, active, openerTabId});
     } else {
       let confirmUrl = `${loadPage}?url=${this.encodeURLProperty(url)}&cookieStoreId=${cookieStoreId}`;
-      let currentCookieStoreId;
-      if (currentUserContextId) {
-        currentCookieStoreId = backgroundLogic.cookieStoreId(currentUserContextId);
+      const currentCookieStoreId = backgroundLogic.cookieStoreId(currentUserContextId);
+      if (parseInt(currentUserContextId, 10) > 0) {
         confirmUrl += `&currentCookieStoreId=${currentCookieStoreId}`;
       }
       return browser.tabs.create({

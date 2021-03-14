@@ -73,7 +73,7 @@ describe("Assignment Comfirm Page Feature", function () {
         url: "moz-extension://fake/confirm-page.html?" +
                `url=${encodeURIComponent(url)}` +
                `&cookieStoreId=${this.webExt.tab.cookieStoreId}`,
-        cookieStoreId: undefined,
+        cookieStoreId: "firefox-default",
         openerTabId: null,
         index: 2,
         active: true
