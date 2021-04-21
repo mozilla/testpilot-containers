@@ -23,6 +23,9 @@ const messageHandler = {
       case "resetBookmarksContext":
         response = assignManager.resetBookmarksMenuItem();
         break;
+      case "resetPageAction":
+        response = assignManager.resetPageAction();
+        break;
       case "deleteContainer":
         response = backgroundLogic.deleteContainer(m.message.userContextId);
         break;
@@ -179,6 +182,17 @@ const messageHandler = {
         throw e;
       });
     }, {urls: ["<all_urls>"], types: ["main_frame"]});
+
+    browser.tabs.onUpdated.addListener((tabId) => {
+      // check if the page action is enabled right away to avoid flashing
+      browser.storage.local.get({ pageActionEnabled: true }).then(({ pageActionEnabled }) => {
+        if (pageActionEnabled) {
+          browser.pageAction.show(tabId);
+        }
+      }).catch(e => {
+        throw e;
+      });
+    }, { properties: ["status"] });
 
     browser.tabs.onCreated.addListener((tab) => {
       // lets remember the last tab created so we can close it if it looks like a redirect
