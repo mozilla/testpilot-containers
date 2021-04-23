@@ -803,8 +803,8 @@ Logic.registerPanel(P_CONTAINER_INFO, {
     });
     // Populating the panel: name and icon
     document.getElementById("container-info-title").textContent = identity.name;
-    
-    const alwaysOpen = document.querySelector("#always-open-in-info-panel");    
+
+    const alwaysOpen = document.querySelector("#always-open-in-info-panel");
     Utils.addEnterHandler(alwaysOpen, async () => {
       Utils.alwaysOpenInContainer(identity);
       window.close();
@@ -941,7 +941,7 @@ Logic.registerPanel(OPEN_NEW_CONTAINER_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1017,7 +1017,7 @@ Logic.registerPanel(MANAGE_CONTAINERS_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1110,10 +1110,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
     const pickedFunction = function (identity) {
       const newUserContextId = Utils.userContextId(identity.cookieStoreId);
       Utils.reloadInContainer(
-        currentTab.url, 
-        false, 
+        currentTab.url,
+        false,
         newUserContextId,
-        currentTab.index + 1, 
+        currentTab.index + 1,
         currentTab.active
       );
       window.close();
@@ -1126,7 +1126,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
       tr.classList.add("menu-item", "hover-highlight", "keyboard-nav");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="mac-icon">
           </div>
@@ -1139,10 +1139,10 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
 
       Utils.addEnterHandler(tr, () => {
         Utils.reloadInContainer(
-          currentTab.url, 
-          false, 
+          currentTab.url,
+          false,
           0,
-          currentTab.index + 1, 
+          currentTab.index + 1,
           currentTab.active
         );
         window.close();
@@ -1156,7 +1156,7 @@ Logic.registerPanel(REOPEN_IN_CONTAINER_PICKER, {
         tr.setAttribute("tabindex", "0");
         const td = document.createElement("td");
 
-        td.innerHTML = Utils.escaped`          
+        td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
@@ -1197,7 +1197,7 @@ Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
   // This method is called when the panel is shown.
   prepare() {
     Logic.listenToPickerBackButton();
-    document.getElementById("picker-title").textContent = "Reopen This Site in";
+    document.getElementById("picker-title").textContent = "Always Open in";
     const fragment = document.createDocumentFragment();
 
     document.getElementById("new-container-div").innerHTML = "";
@@ -1208,7 +1208,7 @@ Logic.registerPanel(ALWAYS_OPEN_IN_PICKER, {
       tr.setAttribute("tabindex", "0");
       const td = document.createElement("td");
 
-      td.innerHTML = Utils.escaped`          
+      td.innerHTML = Utils.escaped`
         <div class="menu-icon hover-highlight">
           <div class="usercontext-icon"
             data-identity-icon="${identity.icon}"
