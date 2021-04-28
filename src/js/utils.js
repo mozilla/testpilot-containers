@@ -62,7 +62,7 @@ const Utils = {
     }
     return false;
   },
-  
+
   addEnterHandler(element, handler) {
     element.addEventListener("click", (e) => {
       handler(e);
@@ -82,7 +82,7 @@ const Utils = {
         handler(e);
       }
     });
-  },  
+  },
 
   userContextId(cookieStoreId = "") {
     const userContextId = cookieStoreId.replace("firefox-container-", "");
@@ -102,10 +102,10 @@ const Utils = {
   async reloadInContainer(url, currentUserContextId, newUserContextId, tabIndex, active) {
     return await browser.runtime.sendMessage({
       method: "reloadInContainer",
-      url, 
-      currentUserContextId, 
-      newUserContextId, 
-      tabIndex, 
+      url,
+      currentUserContextId,
+      newUserContextId,
+      tabIndex,
       active
     });
   },
@@ -116,20 +116,94 @@ const Utils = {
     if (currentTab.cookieStoreId !== identity.cookieStoreId) {
       return await browser.runtime.sendMessage({
         method: "assignAndReloadInContainer",
-        url: currentTab.url, 
-        currentUserContextId: false, 
-        newUserContextId: assignedUserContextId, 
-        tabIndex: currentTab.index +1, 
+        url: currentTab.url,
+        currentUserContextId: false,
+        newUserContextId: assignedUserContextId,
+        tabIndex: currentTab.index +1,
         active:currentTab.active
       });
     }
     await Utils.setOrRemoveAssignment(
-      currentTab.id, 
-      currentTab.url, 
-      assignedUserContextId, 
+      currentTab.id,
+      currentTab.url,
+      assignedUserContextId,
       false
     );
-  }
+  },
+
+  /**
+   * Get the allowed site key for a given url, hostname, or hostname:port
+   * @param {string} pageUrl
+   * @returns the allowed site key for the given url
+   */
+  getAllowedSiteKeyFor(pageUrl) {
+    if (!pageUrl) {
+      throw new Error("pageUrl cannot be empty");
+    }
+
+    if (pageUrl.startsWith("allowedSiteKey@@_")) {
+      // we trust that you're a key already
+      return pageUrl;
+    }
+
+    // attempt to parse the attribute as a naked hostname
+    if (this._isValidHostname(pageUrl)) {
+      return this._allowedSiteKeyForHostPort(pageUrl);
+    }
+
+    // attempt to parse the attribute as a hostname:port
+    if (pageUrl.includes(":")) {
+      const parts = pageUrl.split(":");
+      if (parts.length === 2) {
+        const potentialHost = parts[0];
+        const potentialPort = parts[1];
+        if (this._isValidHostname(potentialHost) && this._isValidPort(potentialPort)) {
+          return this._allowedSiteKeyForHostPort(potentialHost, potentialPort);
+        }
+      }
+    }
+
+    // try parsing the attribute as a page url
+    try {
+      const url = new window.URL(pageUrl);
+      return this._allowedSiteKeyForHostPort(url.hostname, url.port);
+    } catch (err) {
+      console.log(`paramter ${pageUrl} was not parsed as a url`);
+    }
+
+    throw new Error("pageUrl could not be parsed");
+  },
+
+  getLabelForAllowedSiteKey(allowedSiteKey) {
+    if (!allowedSiteKey) {
+      throw new Error("pageUrl cannot be empty");
+    }
+
+    if (allowedSiteKey.startsWith("allowedSiteKey@@_")) {
+      return allowedSiteKey.replace("allowedSiteKey@@_", "");
+    }
+
+    return allowedSiteKey;
+  },
+
+  _isValidPort(potentialPort) {
+    return potentialPort > 0 && potentialPort <= 65535;
+  },
+
+  _isValidHostname(potentialHostname) {
+    // From @bkr https://stackoverflow.com/a/20204811
+    return /(?=^.{4,253}$)(^((?!-)[a-zA-Z0-9-]{0,62}[a-zA-Z0-9]\.)+[a-zA-Z]{2,63}$)/.test(
+      potentialHostname
+    );
+  },
+
+  _allowedSiteKeyForHostPort(hostname, port) {
+    if (port === undefined || port === "" || port === "80" || port === "443") {
+      return `allowedSiteKey@@_${hostname}`;
+    } else {
+      return `allowedSiteKey@@_${hostname}:${port}`;
+    }
+  },
 
 };
 

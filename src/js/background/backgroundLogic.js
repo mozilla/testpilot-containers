@@ -143,8 +143,44 @@ const backgroundLogic = {
       if ("isIsolated" in containerState || remove) {
         delete containerState.isIsolated;
       } else {
-        containerState.isIsolated = "locked";        
+        containerState.isIsolated = "locked";
       }
+      return await identityState.storageArea.set(cookieStoreId, containerState);
+    } catch (error) {
+      console.error(`No container: ${cookieStoreId}`);
+    }
+  },
+
+  async addRemoveAllowedSite(cookieStoreId, allowedSiteUrl, remove = false) {
+    try {
+      const containerState = await identityState.storageArea.get(cookieStoreId);
+      const allowedSiteKey = Utils.getAllowedSiteKeyFor(allowedSiteUrl);
+      const allowedSites = containerState.allowedSites || [];
+      const allowedSiteIdx = allowedSites.indexOf(allowedSiteKey);
+
+      if (!remove) {
+        if (allowedSiteIdx === -1) {
+          // only add the site if it's not already in the list.
+          allowedSites.push(allowedSiteKey);
+          containerState.allowedSites = allowedSites;
+        }
+      } else {
+        // remove
+        if (allowedSiteIdx >= 0) {
+          allowedSites.splice(allowedSiteIdx, 1);
+        }
+      }
+      containerState.allowedSites = allowedSites;
+      return await identityState.storageArea.set(cookieStoreId, containerState);
+    } catch (error) {
+      console.error(`No container: ${cookieStoreId}`);
+    }
+  },
+
+  async clearAllowedSites(cookieStoreId) {
+    try {
+      const containerState = await identityState.storageArea.get(cookieStoreId);
+      containerState.allowedSites = [];
       return await identityState.storageArea.set(cookieStoreId, containerState);
     } catch (error) {
       console.error(`No container: ${cookieStoreId}`);
@@ -257,7 +293,8 @@ const backgroundLogic = {
         hasOpenTabs: !!openTabs.length,
         numberOfHiddenTabs: containerState.hiddenTabs.length,
         numberOfOpenTabs: openTabs.length,
-        isIsolated: !!containerState.isIsolated
+        isIsolated: !!containerState.isIsolated,
+        allowedSites: containerState.allowedSites || []
       };
       return;
     });

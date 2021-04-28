@@ -162,6 +162,15 @@
             </span>
         </td>
       </tr>
+      <tr class="menu-item hover-highlight keyboard-nav" id="allow-open-in" tabindex="0">
+        <td>
+          <img class="menu-icon" alt="Open in New Tab" src="/img/container-allowin-16.svg" />
+          <span class="menu-text">Allow Opening This Site in...</span>
+            <span class="menu-arrow">
+              <img alt="Container Info" src="/img/arrow-icon-right.svg" />
+            </span>
+        </td>
+      </tr>
     </table>
     <hr>
     <div class="sub-header">
@@ -191,7 +200,7 @@
     </div>
     <div class="bottom-btn keyboard-nav hover-highlight" id="manage-containers-link" tabindex="0">
       Manage Containers
-    </div> 
+    </div>
   </div>
 
 
@@ -247,7 +256,7 @@
             <span class="menu-text truncate-text">www.mozillllllllllllllllllllllllllllllllllllla.org</span>
             <img class="trash-button" src="/img/container-close-tab.svg" />
           </td>
-        </tr>       
+        </tr>
       </table>
     </div>
     <div class="bottom-btn keyboard-nav hover-highlight" id="manage-container-link" tabindex="0">
@@ -325,17 +334,41 @@
     </h3>
     <button class="btn-return arrow-left" id="close-container-assignment-panel"></button>
     <hr>
-    <div class="scrollable edit-sites-assigned">
-      <div class="sub-header">Sites assigned to this container</div>
-      <table class="menu scrollable" id="edit-sites-assigned">
-        <tr class="menu-item hover-highlight" tabindex="0">
-          <td>
-            <div class="favicon"><img class="menu-icon" src="https://www.mozilla.org/favicon.ico" /></div>
-            <span class="menu-text truncate-text">www.mozillllllllllllllllllllllllllllla.org</span>
-            <img class="trash-button" src="/img/container-delete.svg" />
-          </td>
-        </tr>
-      </table>
+    <div class="scrollable">
+      <div class="edit-sites-assigned">
+        <div class="sub-header">Sites assigned to this container</div>
+        <table class="menu scrollable" id="edit-sites-assigned">
+          <tr class="menu-item hover-highlight" tabindex="0">
+            <td>
+              <div class="favicon"><img class="menu-icon" src="https://www.mozilla.org/favicon.ico" /></div>
+              <span class="menu-text truncate-text">www.mozillllllllllllllllllllllllllllla.org</span>
+              <img class="trash-button" src="/img/container-delete.svg" />
+            </td>
+          </tr>
+        </table>
+        <div class="edit-allowed-sites-panel">
+          <hr>
+          <div class="sub-header">Allowed sites for this container</div>
+          <table class="menu scrollable" id="edit-sites-allowed">
+            <tr class="menu-item hover-highlight" tabindex="0">
+              <td>
+                <div class="favicon"><img class="menu-icon" src="https://www.mozilla.org/favicon.ico" /></div>
+                <span class="menu-text truncate-text">www.mozillllllllllllllllllllllllllllla.org</span>
+                <img class="trash-button" src="/img/container-delete.svg" />
+              </td>
+            </tr>
+          </table>
+          <div class="edit-form">
+            <form id="add-allowed-site-form">
+              <fieldset>
+                <legend class="form-header" id="add-allowed-site-name-label">Add Allowed Site</legend>
+                <input type="text" name="add-allowed-site-name" id="add-allowed-site-name-input" class="edit-container-panel-name-input" aria-labelledby="add-allowed-site-name-label"/>
+              </fieldset>
+              <button type="submit">Add</button>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -35,6 +35,16 @@ const messageHandler = {
       case "addRemoveSiteIsolation":
         response = backgroundLogic.addRemoveSiteIsolation(m.cookieStoreId);
         break;
+      case "addRemoveAllowedSite":
+        response = backgroundLogic.addRemoveAllowedSite(
+          m.cookieStoreId,
+          m.allowedSiteUrl,
+          m.remove
+        );
+        break;
+      case "clearAllowedSites":
+        response = backgroundLogic.clearAllowedSites(m.cookieStoreId);
+        break;
       case "getAssignment":
         response = browser.tabs.get(m.tabId).then((tab) => {
           return assignManager._getAssignment(tab);
