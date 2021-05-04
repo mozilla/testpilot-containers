@@ -119,8 +119,7 @@
     "default_icon": "img/container-openin-16.svg",
     "default_title": "Always open this in a Container",
     "default_popup": "pageActionPopup.html",
-    "pinned": false,
-    "show_matches": ["*://*/*"]
+    "pinned": false
   },
   "background": {
     "page": "js/background/index.html"
