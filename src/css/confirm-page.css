@@ -45,8 +45,27 @@ html {
   word-break: break-all;
 }
 
+/* Fallbacks for Firefox < 89. In Firefox 89+, content pages like the
+   confirmation page follow the Firefox theme instead of the system theme.
+   That requires the -moz-toolbar-prefers-color-scheme media query. Instead
+   of supporting that query as well, we use color-mix for the background-color,
+   which is also supported in Firefox 89+. */
+/* stylelint-disable media-feature-name-no-unknown */
+@media (prefers-color-scheme: dark) {
+  #redirect-url {
+    background-color: #38383d; /* Grey 70 */
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  #redirect-url {
+    background-color: #efedf0;
+  }
+}
+/* stylelint-enable */
+
 #redirect-url {
-  background: #efedf0; /* Grey 20 */
+  background-color: color-mix(in sRGB, currentColor 10%, transparent);
   border-radius: 2px;
   line-height: 1.5;
   padding-block-end: 0.5rem;
@@ -54,15 +73,6 @@ html {
   padding-inline-end: 0.5rem;
   padding-inline-start: 0.5rem;
 }
-
-/* stylelint-disable media-feature-name-no-unknown */
-@media (prefers-color-scheme: dark) {
-  #redirect-url {
-    background: #38383d; /* Grey 70 */
-    color: #eee; /* White 20 */
-  }
-}
-/* stylelint-enable */
 
 #redirect-url img {
   block-size: 16px;
