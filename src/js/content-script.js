@@ -24,7 +24,7 @@ async function addMessage(message) {
   divElement.innerText = message.text;
 
   const imageElement = document.createElement("img");
-  const imagePath = browser.extension.getURL("/img/container-site-d-24.png");
+  const imagePath = browser.runtime.getURL("/img/container-site-d-24.png");
   const response = await fetch(imagePath);
   const blob = await response.blob();
   const objectUrl = URL.createObjectURL(blob);

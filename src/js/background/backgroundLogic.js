@@ -22,7 +22,7 @@ const backgroundLogic = {
   },
 
   async getExtensionInfo() {
-    const manifestPath = browser.extension.getURL("manifest.json");
+    const manifestPath = browser.runtime.getURL("manifest.json");
     const response = await fetch(manifestPath);
     const extensionInfo = await response.json();
     return extensionInfo;

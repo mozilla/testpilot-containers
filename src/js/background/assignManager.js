@@ -698,7 +698,7 @@ window.assignManager = {
 
   reloadPageInContainer(url, currentUserContextId, userContextId, index, active, neverAsk = false, openerTabId = null) {
     const cookieStoreId = backgroundLogic.cookieStoreId(userContextId);
-    const loadPage = browser.extension.getURL("confirm-page.html");
+    const loadPage = browser.runtime.getURL("confirm-page.html");
     // False represents assignment is not permitted
     // If the user has explicitly checked "Never Ask Again" on the warning page we will send them straight there
     if (neverAsk) {
