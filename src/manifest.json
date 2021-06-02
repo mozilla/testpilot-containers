@@ -5,8 +5,7 @@
   "incognito": "not_allowed",
   "description": "Multi-Account Containers helps you keep all the parts of your online life contained in different tabs. Custom labels and color-coded tabs help keep different activities — like online shopping, travel planning, or checking work email — separate.",
   "icons": {
-    "48": "img/container-site-d-48.png",
-    "96": "img/container-site-d-96.png"
+    "16": "img/multiaccountcontainer-16.svg"
   },
   "applications": {
     "gecko": {
