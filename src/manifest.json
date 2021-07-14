@@ -25,6 +25,7 @@
     "idle",
     "management",
     "storage",
+    "unlimitedStorage",
     "tabs",
     "webRequestBlocking",
     "webRequest"
